@@ -1,0 +1,41 @@
+{
+  "name": "@pushfy/pushfy",
+  "version": "1.0.0",
+  "description": "Official TypeScript client for the Pushfy API — SMS, RCS, Voice, Push Notifications and Conversational AI.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "tsc",
+    "typecheck": "tsc --noEmit",
+    "smoke": "tsc -p tsconfig.smoke.json && node .smoke/test/smoke.js"
+  },
+  "keywords": [
+    "pushfy",
+    "sms",
+    "rcs",
+    "voice",
+    "push",
+    "notifications",
+    "conversational-ai",
+    "cpaas"
+  ],
+  "author": "Pushfy",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PushfyCpaaS/Pushfy.git",
+    "directory": "sdks/typescript"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.0",
+    "typescript": "^5.4.0"
+  }
+}
