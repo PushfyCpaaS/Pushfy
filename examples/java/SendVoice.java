@@ -4,18 +4,17 @@ import com.pushfy.RateLimitException;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Map;
 
 /**
- * Place a voice call: upload an .mp3, then dial a number referencing it.
+ * Place a voice call: upload an .mp3 under a name, then dial a number referencing it.
  *
- * <p>{@link Pushfy#uploadAudio(String, byte[], String)} returns the stored audio
- * descriptor; we read its {@code id} and pass it to
- * {@link Pushfy#sendVoice(String, String, String)}.
+ * <p>The upload does <em>not</em> return an audio id — the audio is identified by the
+ * name you choose. Pass that same name to {@link Pushfy#sendVoice(String, String, String)}.
  *
  * <pre>
  *   export PUSHFY_API_TOKEN=...
  *   export AUDIO_PATH=./welcome.mp3
+ *   export AUDIO_NAME="Welcome message"   # optional, this is the default
  * </pre>
  */
 public class SendVoice {
@@ -28,6 +27,12 @@ public class SendVoice {
             System.exit(2);
         }
 
+        // The name identifies the audio on both steps. Keep upload and call in sync.
+        String audioName = System.getenv("AUDIO_NAME");
+        if (audioName == null) {
+            audioName = "Welcome message";
+        }
+
         Pushfy pushfy = Pushfy.builder()
                 .apiToken(token)
                 .build();
@@ -35,16 +40,10 @@ public class SendVoice {
         byte[] mp3 = Files.readAllBytes(Path.of(audioPath));
 
         try {
-            Object uploaded = pushfy.uploadAudio("welcome", mp3, "welcome.mp3");
-            System.out.println("Uploaded: " + uploaded);
+            pushfy.uploadAudio(audioName, mp3, "welcome.mp3");
+            System.out.println("Uploaded audio: " + audioName);
 
-            String audioId = extractAudioId(uploaded);
-            if (audioId == null) {
-                System.err.println("Could not read the audio id from: " + uploaded);
-                System.exit(1);
-            }
-
-            Object result = pushfy.sendVoice("5511999999999", audioId, "call-1042");
+            Object result = pushfy.sendVoice("5511999999999", audioName, "call-1042");
             System.out.println("Call queued: " + result);
         } catch (RateLimitException err) {
             System.err.println("Rate limited. Retry after " + err.retryAfter + "s.");
@@ -53,17 +52,5 @@ public class SendVoice {
             System.err.println("Transient failure: " + err.status + " " + err.getMessage());
             System.exit(1);
         }
-    }
-
-    /** The upload response is parsed JSON; pull out the audio id defensively. */
-    private static String extractAudioId(Object uploaded) {
-        if (uploaded instanceof Map) {
-            Object id = ((Map<?, ?>) uploaded).get("id");
-            if (id == null) {
-                id = ((Map<?, ?>) uploaded).get("audio");
-            }
-            return id != null ? String.valueOf(id) : null;
-        }
-        return null;
     }
 }

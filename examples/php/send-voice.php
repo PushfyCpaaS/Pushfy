@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-// Place a voice call: upload an mp3 once, then dial referencing its audio id.
+// Place a voice call: upload an mp3 once under a name, then dial referencing
+// that same name. The upload does NOT return an audio id — the audio is keyed
+// by the name you choose.
 //   PUSHFY_API_TOKEN=... PUSHFY_AUDIO_FILE=./welcome.mp3 php send-voice.php
 
 require __DIR__ . '/vendor/autoload.php';
@@ -15,33 +17,29 @@ $pushfy = new Pushfy([
 ]);
 
 $audioFile = getenv('PUSHFY_AUDIO_FILE') ?: '';
+// The name identifies the audio on both steps. Keep upload and call in sync.
+$audioName = getenv('PUSHFY_AUDIO_NAME') ?: 'Welcome message';
 
 try {
-    // 1) Upload the audio (raw mp3 bytes). Do this once and reuse the id.
+    // 1) Upload the audio (raw mp3 bytes) under $audioName. Do this once and reuse the name.
     if ($audioFile === '' || !is_readable($audioFile)) {
         fwrite(STDERR, "Set PUSHFY_AUDIO_FILE to a readable .mp3 path.\n");
         exit(1);
     }
 
     $upload = $pushfy->voice->uploadAudio([
-        'name'     => 'welcome',
+        'name'     => $audioName,
         'filename' => basename($audioFile),
         'data'     => file_get_contents($audioFile), // raw mp3 bytes
     ]);
     echo "Uploaded audio:\n";
     echo json_encode($upload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), "\n";
 
-    $audioId = $upload['id'] ?? getenv('PUSHFY_AUDIO_ID') ?: '';
-    if ($audioId === '') {
-        fwrite(STDERR, "No audio id available to place the call.\n");
-        exit(1);
-    }
-
-    // 2) Place the call referencing the uploaded audio.
+    // 2) Place the call referencing the audio by the same name.
     $result = $pushfy->voice->send([
-        'to'      => '5511999999999',
-        'audioId' => $audioId,
-        'extId'   => 'call-' . time(),
+        'to'        => '5511999999999',
+        'audioName' => $audioName,
+        'extId'     => 'call-' . time(),
     ]);
     echo "Call accepted:\n";
     echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), "\n";

@@ -62,7 +62,7 @@ dotnet run --project . --property:StartupObject=SendSmsExample
 | `SendBulkSms.cs`     | `SendBulkSmsAsync(IEnumerable<SmsMessage>)`.                         |
 | `SendRcs.cs`         | `SendRcsAsync(to, text, title, image, url, cta, extId)` rich card.   |
 | `SendPush.cs`        | `Push.Campaigns.CreateAsync/SendAsync/MetricsAsync` (HMAC server API). |
-| `SendVoice.cs`       | `UploadAudioAsync(...)` then `SendVoiceAsync(to, audioId, extId)`.   |
+| `SendVoice.cs`       | `UploadAudioAsync(...)` then `SendVoiceAsync(to, audioName, extId)`.   |
 | `ReceiveWebhook.cs`  | `HttpListener` endpoint verifying `X-Pushfy-Signature` via `Webhooks.Messaging` over the **raw** body. |
 | `ErrorHandling.cs`   | Catch `RateLimitException` / `AuthenticationException` / `InvalidRequestException` / `ApiException` / `PushfyException`. |
 | `Retry.cs`           | Exponential backoff + jitter, retrying only retryable errors, reusing one `extId` for idempotency. |

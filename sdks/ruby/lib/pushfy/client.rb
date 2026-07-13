@@ -259,6 +259,8 @@ module Pushfy
     end
 
     # Upload a voice audio (.mp3). `data` is the raw mp3 bytes. Returns the API result.
+    # The response does NOT return an audio id — the audio is stored under the
+    # `name` you send here, so keep that exact name to place calls later.
     def upload_audio(name: nil, data:, filename: "audio.mp3")
       form = {
         "nome" => name || filename,
@@ -267,9 +269,10 @@ module Pushfy
       @c._classic("POST", "/audio", form: form)
     end
 
-    # Place a voice call by referencing a previously uploaded audio id.
-    def send(to:, audio_id:, ext_id: nil)
-      msg = Pushfy.to_message(to: to, text: "", ext_id: ext_id, audio: audio_id)
+    # Place a voice call by referencing a previously uploaded audio.
+    # `audio_name` is the audio's NAME — the exact `nome` you set when uploading via /audio.
+    def send(to:, audio_name:, ext_id: nil)
+      msg = Pushfy.to_message(to: to, text: "", ext_id: ext_id, audio: audio_name)
       @c._classic("POST", "/webapi", json: { messages: [msg] })
     end
   end

@@ -4,13 +4,12 @@
 //
 //	PUSHFY_API_TOKEN=... AUDIO_FILE=./welcome.mp3 go run ./send-voice
 //
-// The flow is two steps: upload the .mp3 once to get an audio id, then place
-// calls that reference it.
+// The flow is two steps: upload the .mp3 once under a name, then place calls
+// that reference it by that same name. The upload does NOT return an audio id.
 package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -29,6 +28,12 @@ func main() {
 		log.Fatal("set AUDIO_FILE to a path to an .mp3 file")
 	}
 
+	// The name identifies the audio on both steps. Keep upload and call in sync.
+	audioName := os.Getenv("AUDIO_NAME")
+	if audioName == "" {
+		audioName = "Welcome message"
+	}
+
 	data, err := os.ReadFile(audioPath)
 	if err != nil {
 		log.Fatalf("read audio: %v", err)
@@ -39,28 +44,20 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	// 1. Upload the audio. The raw result contains the audio id.
-	raw, err := client.Voice.UploadAudio(ctx, pushfy.VoiceUpload{
-		Name: "welcome",
+	// 1. Upload the audio under audioName.
+	if _, err := client.Voice.UploadAudio(ctx, pushfy.VoiceUpload{
+		Name: audioName,
 		Data: data,
-	})
-	if err != nil {
+	}); err != nil {
 		log.Fatalf("upload audio failed: %v", err)
 	}
+	fmt.Println("uploaded audio:", audioName)
 
-	var uploaded struct {
-		ID string `json:"id"`
-	}
-	if err := json.Unmarshal(raw, &uploaded); err != nil {
-		log.Fatalf("parse upload result: %v", err)
-	}
-	fmt.Println("uploaded audio id:", uploaded.ID)
-
-	// 2. Place the call referencing the uploaded audio id.
+	// 2. Place the call referencing the audio by the same name.
 	res, err := client.Voice.Send(ctx, pushfy.VoiceCall{
-		To:      "5511999999999",
-		AudioID: uploaded.ID,
-		ExtID:   "call-001",
+		To:        "5511999999999",
+		AudioName: audioName,
+		ExtID:     "call-001",
 	})
 	if err != nil {
 		log.Fatalf("voice call failed: %v", err)

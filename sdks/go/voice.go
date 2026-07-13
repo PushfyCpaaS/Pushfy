@@ -16,8 +16,9 @@ type VoiceUpload struct {
 	Filename string
 }
 
-// UploadAudio uploads an audio file and returns the raw API result (which
-// includes the audio id you pass to Send).
+// UploadAudio uploads an audio file and returns the raw API result. The
+// response does NOT return an audio id — the audio is stored under the Name
+// you send here, so keep that exact name to place calls later with Send.
 func (r *VoiceResource) UploadAudio(ctx context.Context, u VoiceUpload) (json.RawMessage, error) {
 	filename := u.Filename
 	if filename == "" {
@@ -39,11 +40,12 @@ func (r *VoiceResource) UploadAudio(ctx context.Context, u VoiceUpload) (json.Ra
 	return out, err
 }
 
-// VoiceCall places a call referencing a previously uploaded audio id.
+// VoiceCall places a call referencing a previously uploaded audio.
 type VoiceCall struct {
-	To      string
-	AudioID string
-	ExtID   string
+	To string
+	// AudioName is the audio's NAME — the exact nome you set when uploading via /audio.
+	AudioName string
+	ExtID     string
 }
 
 // Send places a voice call and returns the accepted messages.
@@ -52,7 +54,7 @@ func (r *VoiceResource) Send(ctx context.Context, call VoiceCall) ([]MessageResu
 		Destinations: []apiDest{{To: onlyDigits(call.To)}},
 		Text:         "",
 		ExtID:        call.ExtID,
-		Audio:        call.AudioID,
+		Audio:        call.AudioName,
 	}
 	var out []MessageResult
 	err := r.c.classic(ctx, "POST", "/webapi", classicOpts{json: messagesEnvelope{Messages: []apiMessage{msg}}}, &out)

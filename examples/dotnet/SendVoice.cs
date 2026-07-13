@@ -1,12 +1,14 @@
 using System;
 using System.IO;
-using System.Text.Json;
 using System.Threading.Tasks;
 using Pushfy;
 
-// Place a voice call: upload an .mp3, then dial a number referencing it.
+// Place a voice call: upload an .mp3 under a name, then dial a number referencing it.
+// The upload does NOT return an audio id — the audio is identified by the name you
+// choose. Pass that same name when placing the call.
 //   export PUSHFY_API_TOKEN=...
 //   export AUDIO_PATH=./welcome.mp3
+//   export AUDIO_NAME="Welcome message"   # optional, this is the default
 //   dotnet run
 internal static class SendVoiceExample
 {
@@ -20,23 +22,19 @@ internal static class SendVoiceExample
             Environment.Exit(2);
         }
 
+        // The name identifies the audio on both steps. Keep upload and call in sync.
+        var audioName = Environment.GetEnvironmentVariable("AUDIO_NAME") ?? "Welcome message";
+
         using var pushfy = new PushfyClient(new PushfyClientOptions { ApiToken = token });
 
         var mp3 = File.ReadAllBytes(audioPath);
 
         try
         {
-            var uploaded = await pushfy.UploadAudioAsync("welcome", mp3, "welcome.mp3");
-            Console.WriteLine("Uploaded: " + uploaded);
+            await pushfy.UploadAudioAsync(audioName, mp3, "welcome.mp3");
+            Console.WriteLine("Uploaded audio: " + audioName);
 
-            var audioId = ExtractAudioId(uploaded);
-            if (audioId == null)
-            {
-                Console.Error.WriteLine("Could not read the audio id from: " + uploaded);
-                Environment.Exit(1);
-            }
-
-            var result = await pushfy.SendVoiceAsync("5511999999999", audioId: audioId!, extId: "call-1042");
+            var result = await pushfy.SendVoiceAsync("5511999999999", audioName: audioName, extId: "call-1042");
             Console.WriteLine("Call queued: " + result);
         }
         catch (RateLimitException err)
@@ -49,14 +47,5 @@ internal static class SendVoiceExample
             Console.Error.WriteLine($"Transient failure: {err.Status} {err.Message}");
             Environment.Exit(1);
         }
-    }
-
-    // The upload response is a JsonElement; pull out the audio id defensively.
-    private static string? ExtractAudioId(JsonElement uploaded)
-    {
-        if (uploaded.ValueKind != JsonValueKind.Object) return null;
-        if (uploaded.TryGetProperty("id", out var id)) return id.ToString();
-        if (uploaded.TryGetProperty("audio", out var audio)) return audio.ToString();
-        return null;
     }
 }

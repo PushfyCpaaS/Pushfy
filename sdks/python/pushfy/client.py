@@ -235,7 +235,10 @@ class VoiceResource(object):
     def upload_audio(self, name=None, data=None, filename="audio.mp3"):
         """Upload a voice audio (.mp3). Returns the API result.
 
-        :param name: Friendly name for the audio.
+        The response does NOT return an audio id — the audio is stored under the
+        ``name`` you send here, so keep that exact name to place calls later.
+
+        :param name: The audio's name; retain it to reference the audio in ``send``.
         :param data: Raw mp3 bytes.
         :param filename: Uploaded filename (default ``audio.mp3``).
         """
@@ -245,12 +248,16 @@ class VoiceResource(object):
         )
         return self._c._classic("POST", "/audio", form=form)
 
-    def send(self, to=None, audio_id=None, ext_id=None):
-        """Place a voice call referencing a previously uploaded audio id."""
+    def send(self, to=None, audio_name=None, ext_id=None):
+        """Place a voice call referencing a previously uploaded audio.
+
+        :param audio_name: the audio's NAME — the exact ``nome`` you set when
+            uploading via /audio.
+        """
         return self._c._classic(
             "POST",
             "/webapi",
-            json={"messages": [_to_message(to=to, text="", ext_id=ext_id, audio=audio_id)]},
+            json={"messages": [_to_message(to=to, text="", ext_id=ext_id, audio=audio_name)]},
         )
 
 

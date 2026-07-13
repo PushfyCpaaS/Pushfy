@@ -76,9 +76,13 @@ await pushfy.SendRcsAsync(
 
 ### Voice
 
+Voice is two steps: upload the mp3 with a name, then place the call by that
+same name. The upload response does not return an audio id — keep the name
+you chose and pass it as `audioName`.
+
 ```csharp
-var upload = await pushfy.UploadAudioAsync("welcome", File.ReadAllBytes("./welcome.mp3"));
-await pushfy.SendVoiceAsync("5511999999999", audioId: "AUDIO_ID", extId: "call-1");
+await pushfy.UploadAudioAsync("Welcome message", File.ReadAllBytes("./welcome.mp3"));
+await pushfy.SendVoiceAsync("5511999999999", audioName: "Welcome message", extId: "call-1");
 ```
 
 ### Delivery status & balance

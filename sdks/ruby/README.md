@@ -78,9 +78,13 @@ pushfy.rcs.send(
 
 ### Voice
 
+Voice is two steps: upload the mp3 with a `name`, then place the call by that
+same name. The upload response does not return an audio id — keep the `name`
+you chose and pass it as `audio_name`.
+
 ```ruby
-upload = pushfy.voice.upload_audio(name: "welcome", data: File.binread("./welcome.mp3"))
-pushfy.voice.send(to: "5511999999999", audio_id: "AUDIO_ID", ext_id: "call-1")
+pushfy.voice.upload_audio(name: "Welcome message", data: File.binread("./welcome.mp3"))
+pushfy.voice.send(to: "5511999999999", audio_name: "Welcome message", ext_id: "call-1")
 ```
 
 ### Delivery status & balance

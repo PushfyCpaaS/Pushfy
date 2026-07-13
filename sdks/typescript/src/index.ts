@@ -116,7 +116,8 @@ export interface VoiceUploadParams {
 /** Parameters for {@link VoiceResource.send}. */
 export interface VoiceSendParams {
   to: string;
-  audioId: string;
+  /** The audio's NAME — the exact `nome` you set when uploading via /audio. */
+  audioName: string;
   extId?: string;
 }
 
@@ -416,6 +417,8 @@ export class VoiceResource {
   }
   /**
    * Upload a voice audio (.mp3). Returns the API result.
+   * The response does NOT return an audio id — the audio is stored under the
+   * `name` you send here, so keep that exact name to place calls later.
    */
   async uploadAudio({ name, data, filename = 'audio.mp3' }: VoiceUploadParams): Promise<JsonValue> {
     const g = typeof globalThis !== 'undefined'
@@ -429,10 +432,13 @@ export class VoiceResource {
     fd.set('audio', new B([data as unknown as ArrayBuffer], { type: 'audio/mpeg' }), filename);
     return this._c._classic('POST', '/audio', { form: fd });
   }
-  /** Place a voice call by referencing a previously uploaded audio id. */
-  send({ to, audioId, extId }: VoiceSendParams): Promise<MessageSendResult> {
+  /**
+   * Place a voice call by referencing a previously uploaded audio.
+   * `audioName` is the audio's NAME — the exact `nome` you set when uploading via /audio.
+   */
+  send({ to, audioName, extId }: VoiceSendParams): Promise<MessageSendResult> {
     return this._c._classic('POST', '/webapi', {
-      json: { messages: [toMessage({ to, text: '', extId, audio: audioId })] },
+      json: { messages: [toMessage({ to, text: '', extId, audio: audioName })] },
     }) as Promise<MessageSendResult>;
   }
 }

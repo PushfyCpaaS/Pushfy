@@ -171,8 +171,10 @@ class VoiceResource {
   constructor(c) { this._c = c; }
   /**
    * Upload a voice audio (.mp3). Returns the API result.
+   * The response does NOT return an audio id — the audio is stored under the
+   * `name` you send here, so keep that exact name to place calls later.
    * @param {object} p
-   * @param {string} p.name
+   * @param {string} p.name      The audio's name; retain it to reference the audio in `send`.
    * @param {Buffer} p.data      Raw mp3 bytes.
    * @param {string} [p.filename='audio.mp3']
    */
@@ -182,10 +184,16 @@ class VoiceResource {
     fd.set('audio', new Blob([data], { type: 'audio/mpeg' }), filename);
     return this._c._classic('POST', '/audio', { form: fd });
   }
-  /** Place a voice call by referencing a previously uploaded audio id. */
-  send({ to, audioId, extId } = {}) {
+  /**
+   * Place a voice call by referencing a previously uploaded audio.
+   * @param {object} p
+   * @param {string} p.to
+   * @param {string} p.audioName  the audio's NAME — the exact `nome` you set when uploading via /audio.
+   * @param {string} [p.extId]
+   */
+  send({ to, audioName, extId } = {}) {
     return this._c._classic('POST', '/webapi', {
-      json: { messages: [toMessage({ to, text: '', extId, audio: audioId })] },
+      json: { messages: [toMessage({ to, text: '', extId, audio: audioName })] },
     });
   }
 }

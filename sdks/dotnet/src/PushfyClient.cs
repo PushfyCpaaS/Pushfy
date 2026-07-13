@@ -249,7 +249,11 @@ namespace Pushfy
 
         // ---- Messaging: Voice ---------------------------------------------------
 
-        /// <summary>Upload a voice audio (.mp3). Returns the API result.</summary>
+        /// <summary>
+        /// Upload a voice audio (.mp3). Returns the API result. The response does NOT
+        /// return an audio id — the audio is stored under the <paramref name="name"/> you
+        /// send here, so keep that exact name to place calls later.
+        /// </summary>
         public Task<JsonElement> UploadAudioAsync(string name, byte[] data, string filename = "audio.mp3", CancellationToken ct = default)
         {
             var form = new MultipartFormDataContent();
@@ -260,10 +264,14 @@ namespace Pushfy
             return ClassicAsync(HttpMethod.Post, "/audio", form: form, ct: ct);
         }
 
-        /// <summary>Place a voice call by referencing a previously uploaded audio id.</summary>
-        public Task<JsonElement> SendVoiceAsync(string to, string audioId, string? extId = null, CancellationToken ct = default)
+        /// <summary>
+        /// Place a voice call by referencing a previously uploaded audio.
+        /// <paramref name="audioName"/> is the audio's NAME — the exact <c>nome</c> you set
+        /// when uploading via /audio.
+        /// </summary>
+        public Task<JsonElement> SendVoiceAsync(string to, string audioName, string? extId = null, CancellationToken ct = default)
         {
-            var body = new { messages = new[] { ToMessage(to, string.Empty, extId, audioId) } };
+            var body = new { messages = new[] { ToMessage(to, string.Empty, extId, audioName) } };
             return ClassicAsync(HttpMethod.Post, "/webapi", json: body, ct: ct);
         }
 

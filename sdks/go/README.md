@@ -94,11 +94,14 @@ client.RCS.Send(ctx, pushfy.RCSMessage{
 
 ### Voice
 
+Voice is two steps: upload the mp3 with a Name, then place the call by that
+same name. The upload response does not return an audio id — keep the Name
+you chose and pass it as AudioName.
+
 ```go
 data, _ := os.ReadFile("./welcome.mp3")
-up, _ := client.Voice.UploadAudio(ctx, pushfy.VoiceUpload{Name: "welcome", Data: data})
-_ = up // parse the returned JSON for the audio id
-client.Voice.Send(ctx, pushfy.VoiceCall{To: "5511999999999", AudioID: "AUDIO_ID", ExtID: "call-1"})
+_, _ = client.Voice.UploadAudio(ctx, pushfy.VoiceUpload{Name: "Welcome message", Data: data})
+client.Voice.Send(ctx, pushfy.VoiceCall{To: "5511999999999", AudioName: "Welcome message", ExtID: "call-1"})
 ```
 
 ### Delivery status & balance

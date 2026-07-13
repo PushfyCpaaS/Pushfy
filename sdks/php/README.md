@@ -78,12 +78,16 @@ $pushfy->rcs->send([
 
 ### Voice
 
+Voice is two steps: upload the mp3 with a `name`, then place the call by that
+same name. The upload response does not return an audio id — keep the `name`
+you chose and pass it as `audioName`.
+
 ```php
-$upload = $pushfy->voice->uploadAudio([
-    'name' => 'welcome',
+$pushfy->voice->uploadAudio([
+    'name' => 'Welcome message',
     'data' => file_get_contents('./welcome.mp3'), // raw mp3 bytes
 ]);
-$pushfy->voice->send(['to' => '5511999999999', 'audioId' => 'AUDIO_ID', 'extId' => 'call-1']);
+$pushfy->voice->send(['to' => '5511999999999', 'audioName' => 'Welcome message', 'extId' => 'call-1']);
 ```
 
 ### Delivery status & balance

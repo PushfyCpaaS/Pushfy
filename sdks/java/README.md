@@ -87,10 +87,14 @@ pushfy.sendRcs(card);
 
 ### Voice
 
+Voice is two steps: upload the mp3 with a name, then place the call by that
+same name. The upload response does not return an audio id — keep the name
+you chose and pass it as `audioName`.
+
 ```java
 byte[] mp3 = java.nio.file.Files.readAllBytes(java.nio.file.Path.of("welcome.mp3"));
-Object uploaded = pushfy.uploadAudio("welcome", mp3, "welcome.mp3");
-pushfy.sendVoice("5511999999999", "AUDIO_ID", "call-1");
+pushfy.uploadAudio("Welcome message", mp3, "welcome.mp3");
+pushfy.sendVoice("5511999999999", "Welcome message", "call-1");
 ```
 
 ### Delivery status, report & balance

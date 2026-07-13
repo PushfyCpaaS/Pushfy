@@ -1,41 +1,35 @@
 /**
- * send-voice.ts — Upload an .mp3 and place a voice call referencing it.
+ * send-voice.ts — Upload an .mp3 under a name and place a voice call referencing it.
+ *
+ * The upload response does NOT contain an audio id: the audio is identified by
+ * the name you choose. Use that same name when placing the call.
  *
  * Run:  PUSHFY_API_TOKEN=... npx ts-node send-voice.ts ./welcome.mp3
  */
 import { readFileSync } from 'fs';
-import { Pushfy, JsonValue, MessageSendResult } from '@pushfy/pushfy';
-
-/** Extract the uploaded audio id from the loosely-typed upload response. */
-function readAudioId(value: JsonValue): string {
-  if (value && typeof value === 'object' && !Array.isArray(value)) {
-    const obj = value as Record<string, JsonValue>;
-    const id = obj.id ?? obj.audio_id ?? obj.audioId;
-    if (typeof id === 'string' || typeof id === 'number') return String(id);
-  }
-  throw new Error(`Could not find audio id in upload response: ${JSON.stringify(value)}`);
-}
+import { Pushfy, MessageSendResult } from '@pushfy/pushfy';
 
 async function main(): Promise<void> {
   const apiToken = process.env.PUSHFY_API_TOKEN;
   if (!apiToken) throw new Error('Set PUSHFY_API_TOKEN in the environment.');
 
+  // The name identifies the audio on both steps. Keep upload and call in sync.
+  const audioName = process.env.PUSHFY_AUDIO_NAME ?? 'Welcome message';
   const audioPath = process.argv[2] ?? './welcome.mp3';
   const pushfy = new Pushfy({ apiToken });
 
-  // 1. Upload the audio bytes (mp3).
-  const uploaded = await pushfy.voice.uploadAudio({
-    name: 'welcome',
+  // 1. Upload the audio bytes (mp3) under `audioName`.
+  await pushfy.voice.uploadAudio({
+    name: audioName,
     data: readFileSync(audioPath),
     filename: 'welcome.mp3',
   });
-  const audioId = readAudioId(uploaded);
-  console.log('Uploaded audio id:', audioId);
+  console.log('Uploaded audio:', audioName);
 
-  // 2. Place the call.
+  // 2. Place the call, referencing the audio by the same name.
   const result: MessageSendResult = await pushfy.voice.send({
     to: '5511999999999',
-    audioId,
+    audioName,
     extId: 'voice-call-001',
   });
 

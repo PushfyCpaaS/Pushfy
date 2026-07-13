@@ -223,7 +223,10 @@ public class Pushfy {
     /**
      * Upload a voice audio (.mp3) as multipart/form-data. Returns the API result.
      *
-     * @param name     label for the audio (falls back to the filename).
+     * The response does NOT return an audio id — the audio is stored under the
+     * {@code name} you send here, so keep that exact name to place calls later.
+     *
+     * @param name     the audio's name; retain it to reference the audio in {@link #sendVoice}.
      * @param data     raw mp3 bytes.
      * @param filename filename, or {@code null} for "audio.mp3".
      */
@@ -234,11 +237,15 @@ public class Pushfy {
         return classic("POST", "/audio", null, body, "multipart/form-data; boundary=" + boundary, null);
     }
 
-    /** Place a voice call by referencing a previously uploaded audio id. */
-    public Object sendVoice(String to, String audioId, String extId) {
+    /**
+     * Place a voice call by referencing a previously uploaded audio.
+     *
+     * @param audioName the audio's NAME — the exact {@code nome} you set when uploading via /audio.
+     */
+    public Object sendVoice(String to, String audioName, String extId) {
         Map<String, Object> json = new LinkedHashMap<>();
         List<Object> msgs = new ArrayList<>();
-        msgs.add(toMessage(to, "", extId, audioId));
+        msgs.add(toMessage(to, "", extId, audioName));
         json.put("messages", msgs);
         return classic("POST", "/webapi", json, null, null, null);
     }

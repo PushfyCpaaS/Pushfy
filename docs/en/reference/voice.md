@@ -32,7 +32,7 @@ Content-Type: multipart/form-data
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `nome` | string | ✅ | A name for the audio, for your own reference |
+| `nome` | string | ✅ | A name for the audio. **You'll pass this exact name in Step 2 to place the call** — keep it. |
 | `audio` | file | ✅ | The audio file to upload — **`.mp3` only** |
 
 ### Request
@@ -55,7 +55,8 @@ curl -X POST 'https://portal.pushfy.com/audio' \
 }
 ```
 
-The audio is now saved and can be referenced by its id in Step 2.
+The audio is now stored under the **name** you sent in `nome`. That name is what you pass in
+Step 2 — the response above does **not** return a separate audio id, so remember the `nome` you chose.
 
 ### Errors
 
@@ -86,7 +87,7 @@ filled in, the message is treated as a **voice call** instead of a text message.
 | `messages` | array | ✅ | One or more calls (up to 100,000 per request) |
 | `messages[].destinations` | array | ✅ | Recipient list — **only the first entry is used** |
 | `messages[].destinations[].to` | string | ✅ | Phone number, digits only, country code first (e.g. `5511999999999`). Min 8 digits |
-| `messages[].audio` | string | ✅ | Audio id from Step 1 — marks this message as a **voice call** |
+| `messages[].audio` | string | ✅ | The **name** of the audio from Step 1 (the exact `nome` you set) — marks this message as a **voice call** |
 | `messages[].ext_id` | string | — | Your own reference id, echoed back and used for status lookups. Auto-generated if omitted |
 
 ### Request
@@ -100,7 +101,7 @@ curl -X POST 'https://portal.pushfy.com/webapi' \
       {
         "ext_id": "call-1",
         "destinations": [{ "to": "5511999999999" }],
-        "audio": "<audio_id>"
+        "audio": "Welcome message"
       }
     ]
   }'
@@ -141,11 +142,13 @@ On [`/getstatus`](./status.md) the channel appears as `TVOZ`, and the call outco
 
 ## Notes
 
-- **Two steps, one audio.** Create the audio once, then reuse its id across as many calls as you
-  want.
+- **Two steps, one audio.** Create the audio once with a `nome`, then reuse that **name** across as
+  many calls as you want. The `audio` value in Step 2 must match that `nome` exactly.
+- **Billing.** Voice is billed per call placed; unanswered calls (busy, failed, canceled,
+  unreachable) are credited back in a daily reconciliation.
 - **`.mp3` only.** Other formats are rejected with `{"error":"Only MP3"}`.
 - **Voice = SMS with `audio`.** There is no separate voice endpoint; a `/webapi` message carrying
-  an `audio` id is dialed as a voice call.
+  an `audio` name is dialed as a voice call.
 - **One recipient per message.** Only `destinations[0].to` is used; add more objects to `messages`
   for more recipients.
 - **Phone format.** Digits only, country code first. Non-digits are stripped automatically.

@@ -47,7 +47,7 @@ java  -cp ../../sdks/java/target/pushfy-1.0.0.jar:out SendSms
 | `SendBulkSms.java`    | `sendBulkSms(List<Pushfy.Sms>)` — many recipients, one request.     |
 | `SendRcs.java`        | `sendRcs(Pushfy.Rcs)` rich card with title/image/url/cta.           |
 | `SendPush.java`       | `push.campaigns.create/send/metrics` (HMAC-signed server API).      |
-| `SendVoice.java`      | `uploadAudio(...)` then `sendVoice(to, audioId, extId)`.            |
+| `SendVoice.java`      | `uploadAudio(...)` then `sendVoice(to, audioName, extId)`.            |
 | `ReceiveWebhook.java` | `HttpServer` endpoint verifying `X-Pushfy-Signature` via `Webhooks.messaging` over the **raw** body. |
 | `ErrorHandling.java`  | Catch `RateLimitException` / `AuthenticationException` / `InvalidRequestException` / `ApiException` / `PushfyException`. |
 | `Retry.java`          | Exponential backoff + jitter, retrying only retryable errors, reusing one `extId` for idempotency. |

@@ -4,8 +4,8 @@ Envie uma ligação de voz (torpedo de voz) tocando um áudio pré-gravado para 
 
 A voz é enviada em **dois passos**:
 
-1. **Criar o áudio** — envie um `.mp3` e receba um id de áudio.
-2. **Disparar a ligação** — envie uma mensagem no `/webapi` com esse id no campo `audio`.
+1. **Criar o áudio** — envie um `.mp3` e escolha um `nome` para ele.
+2. **Disparar a ligação** — envie uma mensagem no `/webapi` com esse **nome** no campo `audio`.
 
 > **Atenção:** o endpoint `/apitvoz` citado em documentações antigas **não existe** e retorna
 > `404`. Use os dois passos abaixo.
@@ -32,7 +32,7 @@ Content-Type: multipart/form-data
 
 | Campo | Tipo | Obrigatório | Descrição |
 |---|---|---|---|
-| `nome` | string | ✅ | Um nome para o áudio, para sua própria referência |
+| `nome` | string | ✅ | Um nome para o áudio. **Você passará este mesmo nome no Passo 2 para fazer a ligação** — guarde-o. |
 | `audio` | arquivo | ✅ | O arquivo de áudio a enviar — **somente `.mp3`** |
 
 ### Requisição
@@ -40,7 +40,7 @@ Content-Type: multipart/form-data
 ```bash
 curl -X POST 'https://portal.pushfy.com/audio' \
   -H 'Authorization: Bearer SEU_TOKEN' \
-  -F 'nome=Mensagem de boas-vindas' \
+  -F 'nome=Welcome message' \
   -F 'audio=@boas-vindas.mp3'
 ```
 
@@ -55,7 +55,8 @@ curl -X POST 'https://portal.pushfy.com/audio' \
 }
 ```
 
-O áudio fica salvo e pode ser referenciado pelo seu id no Passo 2.
+O áudio fica salvo sob o **nome** que você enviou em `nome`. Esse nome é o que você passa no
+Passo 2 — a resposta acima **não** retorna um id de áudio separado, então lembre-se do `nome` que escolheu.
 
 ### Erros
 
@@ -71,7 +72,7 @@ O áudio fica salvo e pode ser referenciado pelo seu id no Passo 2.
 ## Passo 2 — Disparar a ligação
 
 A ligação é disparada no **mesmo endpoint do SMS**, `POST /webapi`
-([Enviar SMS](./sms.md)). Coloque o id de áudio do Passo 1 no campo `audio`. Quando `audio`
+([Enviar SMS](./sms.md)). Coloque o **nome** do áudio do Passo 1 no campo `audio`. Quando `audio`
 está preenchido, a mensagem é tratada como **ligação de voz** em vez de mensagem de texto.
 
 - **URL** — `https://portal.pushfy.com/webapi`
@@ -86,7 +87,7 @@ está preenchido, a mensagem é tratada como **ligação de voz** em vez de mens
 | `messages` | array | ✅ | Uma ou mais ligações (até 100.000 por requisição) |
 | `messages[].destinations` | array | ✅ | Lista de destinatários — **apenas o primeiro é usado** |
 | `messages[].destinations[].to` | string | ✅ | Telefone, só dígitos, com DDI primeiro (ex.: `5511999999999`). Mín. 8 dígitos |
-| `messages[].audio` | string | ✅ | Id de áudio do Passo 1 — marca a mensagem como **ligação de voz** |
+| `messages[].audio` | string | ✅ | O **nome** do áudio do Passo 1 (o mesmo `nome` que você definiu) — marca a mensagem como **ligação de voz** |
 | `messages[].ext_id` | string | — | Seu id de referência, devolvido na resposta e usado na consulta de status. Gerado automaticamente se omitido |
 
 ### Requisição
@@ -100,7 +101,7 @@ curl -X POST 'https://portal.pushfy.com/webapi' \
       {
         "ext_id": "call-1",
         "destinations": [{ "to": "5511999999999" }],
-        "audio": "<audio_id>"
+        "audio": "Welcome message"
       }
     ]
   }'
@@ -141,10 +142,13 @@ campo `statustvoz`:
 
 ## Observações
 
-- **Dois passos, um áudio.** Crie o áudio uma vez e reutilize o id em quantas ligações quiser.
+- **Dois passos, um áudio.** Crie o áudio uma vez com um `nome` e reutilize esse **nome** em
+  quantas ligações quiser. O valor de `audio` no Passo 2 precisa casar exatamente com esse `nome`.
+- **Tarifação.** A voz é tarifada por ligação realizada; ligações não atendidas (ocupado, falha,
+  cancelada, indisponível) são estornadas em uma reconciliação diária.
 - **Somente `.mp3`.** Outros formatos são recusados com `{"error":"Only MP3"}`.
 - **Voz = SMS com `audio`.** Não existe endpoint separado de voz; uma mensagem no `/webapi` que
-  carrega um id de `audio` é discada como ligação de voz.
+  carrega um `nome` de `audio` é discada como ligação de voz.
 - **Um destinatário por mensagem.** Só `destinations[0].to` é usado; para mais destinatários,
   adicione mais objetos em `messages`.
 - **Formato do telefone.** Só dígitos, DDI primeiro. Não-dígitos são removidos automaticamente.

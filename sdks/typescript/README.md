@@ -88,14 +88,18 @@ await pushfy.rcs.send({
 
 ### Voice
 
+Voice is two steps: upload the mp3 with a `name`, then place the call by that
+same name. The upload response does not return an audio id — keep the `name`
+you chose and pass it as `audioName`.
+
 ```ts
 import { readFileSync } from 'fs';
 
-const uploaded = await pushfy.voice.uploadAudio({
-  name: 'welcome',
+await pushfy.voice.uploadAudio({
+  name: 'Welcome message',
   data: readFileSync('./welcome.mp3'),
 });
-await pushfy.voice.send({ to: '5511999999999', audioId: 'AUDIO_ID', extId: 'call-1' });
+await pushfy.voice.send({ to: '5511999999999', audioName: 'Welcome message', extId: 'call-1' });
 ```
 
 ### Delivery status & balance
