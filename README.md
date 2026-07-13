@@ -58,7 +58,7 @@ curl -X POST 'https://portal.pushfy.com/webapi' \
     "messages": [
       { "ext_id": "welcome-001",
         "destinations": [{ "to": "5511999999999" }],
-        "text": "Hello from Pushfy 👋" }
+        "text": "Hello from Pushfy" }
     ]
   }'
 ```
@@ -141,7 +141,7 @@ curl -X POST 'https://portal.pushfy.com/webapi' \
     "messages": [
       { "ext_id": "boas-vindas-001",
         "destinations": [{ "to": "5511999999999" }],
-        "text": "Olá, da Pushfy 👋" }
+        "text": "Olá, da Pushfy" }
     ]
   }'
 ```
