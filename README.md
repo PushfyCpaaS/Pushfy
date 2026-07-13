@@ -77,6 +77,7 @@ That's it. Next steps:
 - 📖 [Send SMS](./docs/en/reference/sms.md) · [Send RCS](./docs/en/reference/rcs.md) · [Send Voice](./docs/en/reference/voice.md)
 - 📖 [Push Notifications](./docs/en/reference/push.md) · [Conversational AI](./docs/en/reference/conversations.md)
 - 🔔 [Webhooks](./docs/en/webhooks/README.md)
+- 🔌 [CRM & Integrations](./docs/en/integrations/README.md)
 - 🚀 [Guides](./docs/en/guides/) · ❓ [FAQ](./docs/en/faq.md)
 
 ### Official SDKs
@@ -159,6 +160,7 @@ Pronto. Próximos passos:
 - 📖 [Enviar SMS](./docs/pt/reference/sms.md) · [Enviar RCS](./docs/pt/reference/rcs.md) · [Enviar Voz](./docs/pt/reference/voice.md)
 - 📖 [Push Notifications](./docs/pt/reference/push.md) · [IA Conversacional](./docs/pt/reference/conversations.md)
 - 🔔 [Webhooks](./docs/pt/webhooks/README.md)
+- 🔌 [CRM & Integrações](./docs/pt/integrations/README.md)
 - 🚀 [Guias](./docs/pt/guides/) · ❓ [FAQ](./docs/pt/faq.md)
 
 ### Licença

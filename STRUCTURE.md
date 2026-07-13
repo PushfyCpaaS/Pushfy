@@ -29,6 +29,10 @@ Pushfy/
 │   │   │   ├── messaging-status.md
 │   │   │   ├── push.md
 │   │   │   └── conversations.md
+│   │   ├── integrations/         # CRM & Integrations — one page per platform
+│   │   │   ├── README.md         # group index (generic, n8n, hubspot, salesforce,
+│   │   │   ├── generic.md        #  activecampaign, pipedrive, rdstation, bitrix24,
+│   │   │   └── ...               #  zoho, monday)
 │   │   ├── guides/
 │   │   │   ├── first-message.md
 │   │   │   ├── campaigns.md
