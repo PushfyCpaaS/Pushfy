@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="96" viewBox="0 0 360 96" role="img" aria-label="Pushfy">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6d28d9"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="16" width="64" height="64" rx="16" fill="url(#g)"/>
+  <path d="M28 60V36h14a10 10 0 0 1 0 20h-6v4z" fill="#fff"/>
+  <text x="88" y="60" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="40" font-weight="700" fill="currentColor">Pushfy</text>
+</svg>
+<!-- Placeholder logo. Replace with the official Pushfy brand asset before publishing. -->

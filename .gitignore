@@ -1,0 +1,28 @@
+# Secrets — never commit
+.env
+.env.*
+*.pem
+*.key
+secrets.*
+
+# Dependencies
+node_modules/
+vendor/
+__pycache__/
+*.pyc
+.venv/
+target/
+bin/
+obj/
+.gradle/
+
+# Build output
+dist/
+build/
+*.log
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
