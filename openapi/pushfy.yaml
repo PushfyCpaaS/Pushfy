@@ -1,0 +1,2177 @@
+openapi: 3.1.0
+info:
+  title: Pushfy API
+  version: 1.0.0
+  description: |
+    Pushfy API — Messaging (SMS / RCS / Voice), delivery reporting and balance, plus the
+    V2 products Push Notifications and Conversational AI (PushAgent).
+
+    Pushfy spans two API generations served from two base URLs:
+
+    - **Messaging & reporting** — classic API at `https://portal.pushfy.com`. Errors are a JSON
+      object `{ "error": "..." }` (a few status endpoints answer with plain text).
+    - **Push & Conversational AI** — V2 API. Every V2 route is dispatched through the single
+      gateway `https://portal.pushfy.com/v2/api.php` using the query parameter `?r=<route>`
+      (for example `?r=/v1/conversations`). In this specification the V2 operations are modeled
+      under the route path itself (e.g. `/v1/conversations`); the official SDKs build the
+      `?r=` gateway call for you. V2 errors are always JSON `{ "ok": false, "error": "..." }`.
+
+    **Authentication by product.** Messaging uses a Bearer token (or `X-API-TOKEN`). The public
+    Push device group authenticates with a public `app_id`. The Push server API and PushAgent are
+    signed with HMAC-SHA256 (`X-PUSH-*` and `X-PA-*` headers respectively). OpenAPI cannot express
+    an HMAC signature scheme, so the required timestamp and signature headers are documented in the
+    relevant security scheme descriptions.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  contact:
+    name: Pushfy API Support
+    url: https://portal.pushfy.com
+    email: fmsolutionbh@gmail.com
+
+servers:
+  - url: https://portal.pushfy.com
+    description: Messaging & reporting (classic API)
+  - url: https://portal.pushfy.com/v2/api.php
+    description: Push & Conversational AI (V2 gateway — routes dispatched via ?r=<route>)
+
+tags:
+  - name: Messaging
+    description: Send SMS, RCS and Voice messages.
+  - name: Reporting
+    description: Delivery status, day/period reports and blocked numbers.
+  - name: Balance
+    description: Account SMS balance.
+  - name: Push (Public)
+    description: Browser/device SDK calls authenticated with the public app_id.
+  - name: Push (Server)
+    description: Server-to-server Push calls signed with HMAC (X-PUSH-*).
+  - name: Conversational AI
+    description: PushAgent conversations, events and tasks signed with HMAC (X-PA-*).
+
+security:
+  - bearerAuth: []
+
+paths:
+  # ------------------------------------------------------------------ MESSAGING
+  /webapi:
+    post:
+      operationId: sendSms
+      summary: Send SMS (async / queued, recommended)
+      description: |
+        Queues one or many text messages and returns immediately. A message that carries an
+        `audio` id is dialed as a Voice call instead of an SMS.
+      tags: [Messaging]
+      servers:
+        - url: https://portal.pushfy.com
+      security:
+        - bearerAuth: []
+        - apiTokenHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SmsSendRequest'
+            example:
+              messages:
+                - ext_id: order-1042
+                  destinations:
+                    - to: "5511999999999"
+                  text: "Your order #1042 has shipped"
+      responses:
+        '200':
+          description: Array with one row per message.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SendResponseItem'
+              example:
+                - id: order-1042
+                  phone: "5511999999999"
+                  date: "2026-07-12 14:33:21"
+                  ext_id: order-1042
+        '400':
+          $ref: '#/components/responses/ClassicBadRequest'
+        '401':
+          $ref: '#/components/responses/ClassicUnauthorized'
+        '403':
+          $ref: '#/components/responses/ClassicForbidden'
+        '429':
+          $ref: '#/components/responses/ClassicRateLimited'
+
+  /api:
+    post:
+      operationId: sendSmsSync
+      summary: Send SMS (synchronous)
+      description: Same request/response shape as `/webapi`, but writes messages inline and returns real auto-increment ids.
+      tags: [Messaging]
+      servers:
+        - url: https://portal.pushfy.com
+      security:
+        - bearerAuth: []
+        - apiTokenHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SmsSendRequest'
+            example:
+              messages:
+                - destinations:
+                    - to: "5511999999999"
+                  text: "Hi Ana"
+      responses:
+        '200':
+          description: Array with one row per message.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SendResponseItem'
+        '400':
+          $ref: '#/components/responses/ClassicBadRequest'
+        '401':
+          $ref: '#/components/responses/ClassicUnauthorized'
+        '403':
+          $ref: '#/components/responses/ClassicForbidden'
+        '429':
+          $ref: '#/components/responses/ClassicRateLimited'
+
+  /apircsnativo.php:
+    post:
+      operationId: sendRcs
+      summary: Send RCS (recommended)
+      description: |
+        Queues RCS rich cards against the existing "API RCS" campaign on the account. If no such
+        campaign is provisioned the call returns `400 {"error":"rcs_campaign_not_found"}`.
+      tags: [Messaging]
+      servers:
+        - url: https://portal.pushfy.com
+      security:
+        - bearerAuth: []
+        - apiTokenHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RcsSendRequest'
+            example:
+              messages:
+                - ext_id: order-1042
+                  destinations:
+                    - to: "5511999999999"
+                  title: "Your order shipped"
+                  image: "https://cdn.example.com/box.png"
+                  text: "Order #1042 is on its way"
+                  url: "https://shop.example.com/orders/1042"
+                  cta: "Track order"
+      responses:
+        '200':
+          description: Array with one row per message.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SendResponseItem'
+        '400':
+          $ref: '#/components/responses/ClassicBadRequest'
+        '401':
+          $ref: '#/components/responses/ClassicUnauthorized'
+        '403':
+          $ref: '#/components/responses/ClassicForbidden'
+
+  /rcs:
+    post:
+      operationId: sendRcsAutoCampaign
+      summary: Send RCS (auto-creates campaign)
+      description: |
+        Simplest RCS option — creates the campaign automatically. Here `to` is passed directly on
+        each message object (not inside `destinations`). No deduplication is applied.
+      tags: [Messaging]
+      servers:
+        - url: https://portal.pushfy.com
+      security:
+        - bearerAuth: []
+        - apiTokenHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [messages]
+              properties:
+                messages:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/RcsMessageFlat'
+            example:
+              messages:
+                - to: "5511999999999"
+                  title: "Your order shipped"
+                  text: "Order #1042 is on its way"
+                  url: "https://shop.example.com/orders/1042"
+                  cta: "Track order"
+                  image: "https://cdn.example.com/box.png"
+      responses:
+        '200':
+          description: Campaign creation result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RcsAutoCampaignResponse'
+              example:
+                status: ok
+                campaign_id: 12345
+                inserted: 8
+        '400':
+          $ref: '#/components/responses/ClassicBadRequest'
+        '401':
+          $ref: '#/components/responses/ClassicUnauthorized'
+        '403':
+          $ref: '#/components/responses/ClassicForbidden'
+
+  /rcscampaign:
+    post:
+      operationId: sendRcsToCampaign
+      summary: Send RCS to a specific campaign
+      description: Appends messages to a campaign you already own. `cid` is required and validated against your account.
+      tags: [Messaging]
+      servers:
+        - url: https://portal.pushfy.com
+      security:
+        - bearerAuth: []
+        - apiTokenHeader: []
+      parameters:
+        - name: cid
+          in: query
+          required: true
+          description: Id of a campaign owned by your account.
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RcsSendRequest'
+            example:
+              messages:
+                - ext_id: order-1042
+                  destinations:
+                    - to: "5511999999999"
+                  text: "Order #1042 is on its way"
+      responses:
+        '200':
+          description: Rows inserted, including the target campaign id (`cid`).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SendResponseItem'
+        '400':
+          $ref: '#/components/responses/ClassicBadRequest'
+        '401':
+          $ref: '#/components/responses/ClassicUnauthorized'
+        '403':
+          $ref: '#/components/responses/ClassicForbidden'
+
+  /audio:
+    post:
+      operationId: uploadAudio
+      summary: Upload a voice audio (.mp3)
+      description: |
+        Step 1 of Voice sending. Upload an `.mp3`; the returned audio is referenced by its id in a
+        subsequent `/webapi` call (message `audio` field) to place a voice call.
+      tags: [Messaging]
+      servers:
+        - url: https://portal.pushfy.com
+      security:
+        - bearerAuth: []
+        - apiTokenHeader: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [nome, audio]
+              properties:
+                nome:
+                  type: string
+                  description: A name for the audio, for your own reference.
+                audio:
+                  type: string
+                  format: binary
+                  description: The audio file to upload — .mp3 only.
+      responses:
+        '200':
+          description: Audio saved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  user_id:
+                    type: integer
+              example:
+                message: Audio saved successfully
+                user_id: 123
+        '400':
+          $ref: '#/components/responses/ClassicBadRequest'
+        '401':
+          $ref: '#/components/responses/ClassicUnauthorized'
+
+  /getstatus:
+    get:
+      operationId: getMessageStatus
+      summary: Delivery status of one message
+      description: |
+        Look up one message by the `ext_id` you sent it with, or by the internal `uid`. Returns an
+        array. Error bodies from this endpoint are plain text.
+      tags: [Reporting]
+      servers:
+        - url: https://portal.pushfy.com
+      security:
+        - bearerAuth: []
+        - apiTokenHeader: []
+      parameters:
+        - name: ext_id
+          in: query
+          required: false
+          description: Your own reference id, as sent with the message.
+          schema:
+            type: string
+        - name: uid
+          in: query
+          required: false
+          description: Internal message id (alternative to ext_id).
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Array with one object per matching message.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StatusItem'
+              example:
+                - phone: "5511999999999"
+                  status: Delivered
+                  date: "2026-07-12 14:33:21"
+                  channel: SMS
+                  statustvoz: Answered
+        '400':
+          $ref: '#/components/responses/ClassicTextBadRequest'
+        '401':
+          $ref: '#/components/responses/ClassicTextUnauthorized'
+        '404':
+          $ref: '#/components/responses/ClassicTextNotFound'
+
+  /getdate:
+    get:
+      operationId: getStatusByDate
+      summary: Status of all messages on a day
+      tags: [Reporting]
+      servers:
+        - url: https://portal.pushfy.com
+      security:
+        - bearerAuth: []
+        - apiTokenHeader: []
+      parameters:
+        - name: date
+          in: query
+          required: true
+          description: Day to report, YYYY-MM-DD.
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Array with one object per message.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StatusItem'
+              example:
+                - phone: "5511999999999"
+                  status: Delivered
+                  date: "2026-07-12 14:33:21"
+                  date_dlr: "2026-07-12 14:33:40"
+                  ext_id: order-1042
+                  channel: SMS
+                  brand: YOUR_BRAND
+        '400':
+          $ref: '#/components/responses/ClassicTextBadRequest'
+        '401':
+          $ref: '#/components/responses/ClassicTextUnauthorized'
+        '404':
+          $ref: '#/components/responses/ClassicTextNotFound'
+
+  /reportbydate:
+    get:
+      operationId: getReportByDate
+      summary: Report by date range
+      description: Paginated report over a day or a datetime range, with optional filters. Caps at 5000 rows per page.
+      tags: [Reporting]
+      servers:
+        - url: https://portal.pushfy.com
+      security:
+        - bearerAuth: []
+        - apiTokenHeader: []
+      parameters:
+        - name: date
+          in: query
+          required: false
+          description: A single day, YYYY-MM-DD.
+          schema:
+            type: string
+            format: date
+        - name: start
+          in: query
+          required: false
+          description: Range start datetime — takes precedence over `date`.
+          schema:
+            type: string
+        - name: end
+          in: query
+          required: false
+          description: Range end datetime — takes precedence over `date`.
+          schema:
+            type: string
+        - name: event
+          in: query
+          required: false
+          description: Filter by status (English name, see status glossary).
+          schema:
+            type: string
+        - name: date_dlr
+          in: query
+          required: false
+          description: Filter by delivery-receipt date.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: Max rows, up to 5000 (default 1000).
+          schema:
+            type: integer
+            default: 1000
+            maximum: 5000
+        - name: offset
+          in: query
+          required: false
+          description: Rows to skip, for pagination.
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Array with one object per message.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReportItem'
+              example:
+                - id: "123456"
+                  timestamp: "2026-07-12 14:33:21"
+                  date_dlr: "2026-07-12 14:33:40"
+                  event: Delivered
+                  recipient: "5511999999999"
+                  label: order-1042
+                  message: "Your order #1042 has shipped"
+                  channel: SMS
+                  status_code: "0"
+                  cost: "0.06"
+        '400':
+          $ref: '#/components/responses/ClassicTextBadRequest'
+        '401':
+          $ref: '#/components/responses/ClassicTextUnauthorized'
+        '404':
+          $ref: '#/components/responses/ClassicTextNotFound'
+
+  /strikeapi:
+    get:
+      operationId: getBlockedNumbers
+      summary: List blocked numbers (strike protection)
+      tags: [Reporting]
+      servers:
+        - url: https://portal.pushfy.com
+      security:
+        - bearerAuth: []
+        - apiTokenHeader: []
+      responses:
+        '200':
+          description: Array of blocked numbers.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BlockedNumber'
+              example:
+                - phone_number: "5511999999999"
+                  block_reason: repeated_undelivered
+                  undelivered_total: 5
+                  blocked_at: "2026-07-01 09:15:00"
+        '401':
+          $ref: '#/components/responses/ClassicUnauthorized'
+
+  /balance:
+    get:
+      operationId: getBalance
+      summary: Account SMS balance
+      description: |
+        Returns the SMS balance as a formatted string with a thousands separator. Accepts only the
+        main account Bearer token (or Basic); secondary multi-tokens are rejected.
+      tags: [Balance]
+      servers:
+        - url: https://portal.pushfy.com
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current SMS balance.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceResponse'
+              example:
+                saldo: "1.500"
+        '401':
+          $ref: '#/components/responses/ClassicUnauthorized'
+
+  # ------------------------------------------------------------- PUSH (PUBLIC)
+  /v1/push/config:
+    servers:
+      - url: https://portal.pushfy.com/v2/api.php
+    get:
+      operationId: getPushConfig
+      summary: Public push config for the SDK
+      description: Returns the VAPID public key and opt-in settings for a public `app_id`. Routed via `?r=/v1/push/config`.
+      tags: [Push (Public)]
+      security: []
+      parameters:
+        - name: app_id
+          in: query
+          required: true
+          description: Your public application id.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: SDK configuration.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushConfigResponse'
+              example:
+                ok: true
+                app_id: pushapp_xxxxxxxxxxxx
+                vapid_public: BExxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+                optin:
+                  prompt: soft
+                  delay: 5
+        '400':
+          $ref: '#/components/responses/V2BadRequest'
+        '403':
+          $ref: '#/components/responses/V2Forbidden'
+
+  /v1/push/subscribe:
+    servers:
+      - url: https://portal.pushfy.com/v2/api.php
+    post:
+      operationId: subscribePushDevice
+      summary: Register / update a device (public)
+      description: |
+        Registers the device's push subscription (web push) or native token. Routed via
+        `?r=/v1/push/subscribe`. If the project defines an allowed-origins list, the browser
+        `Origin` must match it (an empty list allows any origin).
+      tags: [Push (Public)]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushSubscribeRequest'
+            example:
+              app_id: pushapp_xxxxxxxxxxxx
+              provider: webpush
+              platform: web
+              subscription:
+                endpoint: "https://fcm.googleapis.com/fcm/send/xxxxxxxx"
+                keys:
+                  p256dh: BExxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+                  auth: xxxxxxxxxxxxxxxxxxxxxx
+              user_ext_id: user-42
+              tags: [vip, pt-br]
+              context:
+                lang: pt-BR
+                tz: America/Sao_Paulo
+                pwa: false
+      responses:
+        '200':
+          description: Device registered.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  device_id:
+                    type: integer
+              example:
+                ok: true
+                device_id: 123
+        '400':
+          $ref: '#/components/responses/V2BadRequest'
+        '403':
+          $ref: '#/components/responses/V2Forbidden'
+        '429':
+          $ref: '#/components/responses/V2RateLimited'
+
+  /v1/push/unsubscribe:
+    servers:
+      - url: https://portal.pushfy.com/v2/api.php
+    post:
+      operationId: unsubscribePushDevice
+      summary: Opt a device out (public)
+      description: Identify the device by `token` or by `subscription.endpoint`. Routed via `?r=/v1/push/unsubscribe`.
+      tags: [Push (Public)]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [app_id]
+              properties:
+                app_id:
+                  type: string
+                token:
+                  type: string
+                subscription:
+                  type: object
+                  properties:
+                    endpoint:
+                      type: string
+            example:
+              app_id: pushapp_xxxxxxxxxxxx
+              subscription:
+                endpoint: "https://fcm.googleapis.com/fcm/send/xxxxxxxx"
+      responses:
+        '200':
+          description: Device opted out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+              example:
+                ok: true
+        '400':
+          $ref: '#/components/responses/V2BadRequest'
+
+  /v1/push/track:
+    servers:
+      - url: https://portal.pushfy.com/v2/api.php
+    post:
+      operationId: trackPushEvent
+      summary: Report a device-side event (public)
+      description: Reports a `delivered` / `open` / `click` / `close` / `conversion` event. Routed via `?r=/v1/push/track`.
+      tags: [Push (Public)]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushTrackRequest'
+            example:
+              app_id: pushapp_xxxxxxxxxxxx
+              event: click
+              campaign_id: 987
+              delivery_id: d-xxxxxxxx
+      responses:
+        '200':
+          description: Event recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+              example:
+                ok: true
+        '400':
+          $ref: '#/components/responses/V2BadRequest'
+        '429':
+          $ref: '#/components/responses/V2RateLimited'
+
+  # ------------------------------------------------------------- PUSH (SERVER)
+  /v1/push/devices:
+    servers:
+      - url: https://portal.pushfy.com/v2/api.php
+    get:
+      operationId: listPushDevices
+      summary: List devices (server)
+      tags: [Push (Server)]
+      security:
+        - pushHmac: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: platform
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: Max rows (max 500).
+          schema:
+            type: integer
+            maximum: 500
+      responses:
+        '200':
+          description: List of devices.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  devices:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PushDevice'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '403':
+          $ref: '#/components/responses/V2Forbidden'
+        '429':
+          $ref: '#/components/responses/V2RateLimited'
+    post:
+      operationId: createPushDevice
+      summary: Register a device server-side
+      description: Requires `project_id` or `app_id`, and `token`.
+      tags: [Push (Server)]
+      security:
+        - pushHmac: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushDeviceCreate'
+            example:
+              app_id: pushapp_xxxxxxxxxxxx
+              token: fcm-device-token-xxxx
+              platform: android
+              user_ext_id: user-42
+      responses:
+        '200':
+          description: Device registered.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  device_id:
+                    type: integer
+              example:
+                ok: true
+                device_id: 123
+        '400':
+          $ref: '#/components/responses/V2BadRequest'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '429':
+          $ref: '#/components/responses/V2RateLimited'
+
+  /v1/push/devices/{id}:
+    servers:
+      - url: https://portal.pushfy.com/v2/api.php
+    parameters:
+      - $ref: '#/components/parameters/PathId'
+    delete:
+      operationId: deletePushDevice
+      summary: Delete / opt out a device (server)
+      tags: [Push (Server)]
+      security:
+        - pushHmac: []
+      responses:
+        '200':
+          description: Device removed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+              example:
+                ok: true
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '404':
+          $ref: '#/components/responses/V2NotFound'
+
+  /v1/push/campaigns:
+    servers:
+      - url: https://portal.pushfy.com/v2/api.php
+    get:
+      operationId: listPushCampaigns
+      summary: List campaigns (server)
+      tags: [Push (Server)]
+      security:
+        - pushHmac: []
+      responses:
+        '200':
+          description: List of campaigns.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  campaigns:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PushCampaign'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '403':
+          $ref: '#/components/responses/V2Forbidden'
+    post:
+      operationId: createPushCampaign
+      summary: Create a campaign (server)
+      tags: [Push (Server)]
+      security:
+        - pushHmac: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushCampaign'
+            example:
+              name: Weekend promo
+              title: 50% off today
+              body: Tap to claim your bonus
+              url: "https://example.com/promo"
+              audience:
+                tags: [vip]
+      responses:
+        '200':
+          description: Campaign created (draft).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  campaign_id:
+                    type: integer
+                  status:
+                    type: string
+              example:
+                ok: true
+                campaign_id: 987
+                status: draft
+        '400':
+          $ref: '#/components/responses/V2BadRequest'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '403':
+          $ref: '#/components/responses/V2Forbidden'
+        '429':
+          $ref: '#/components/responses/V2RateLimited'
+
+  /v1/push/campaigns/{id}:
+    servers:
+      - url: https://portal.pushfy.com/v2/api.php
+    parameters:
+      - $ref: '#/components/parameters/PathId'
+    get:
+      operationId: getPushCampaign
+      summary: Get a campaign (server)
+      tags: [Push (Server)]
+      security:
+        - pushHmac: []
+      responses:
+        '200':
+          description: Campaign detail.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/OkResponse'
+                  - type: object
+                    properties:
+                      campaign:
+                        $ref: '#/components/schemas/PushCampaign'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '404':
+          $ref: '#/components/responses/V2NotFound'
+    patch:
+      operationId: updatePushCampaign
+      summary: Update a draft campaign (server)
+      tags: [Push (Server)]
+      security:
+        - pushHmac: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushCampaign'
+            example:
+              title: 60% off today
+              body: Updated copy
+      responses:
+        '200':
+          description: Campaign updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  campaign_id:
+                    type: integer
+                  status:
+                    type: string
+              example:
+                ok: true
+                campaign_id: 987
+                status: draft
+        '400':
+          $ref: '#/components/responses/V2BadRequest'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '404':
+          $ref: '#/components/responses/V2NotFound'
+
+  /v1/push/campaigns/{id}/send:
+    servers:
+      - url: https://portal.pushfy.com/v2/api.php
+    parameters:
+      - $ref: '#/components/parameters/PathId'
+    post:
+      operationId: sendPushCampaign
+      summary: Send a campaign (server)
+      description: |
+        Sends the campaign. Sign the path including the id, e.g. `/v1/push/campaigns/987/send`.
+        The lifecycle actions `pause`, `resume`, `cancel` and `duplicate` share this shape.
+      tags: [Push (Server)]
+      security:
+        - pushHmac: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+            example: {}
+      responses:
+        '200':
+          description: Campaign is sending.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  campaign_id:
+                    type: integer
+                  status:
+                    type: string
+              example:
+                ok: true
+                campaign_id: 987
+                status: sending
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '404':
+          $ref: '#/components/responses/V2NotFound'
+        '429':
+          $ref: '#/components/responses/V2RateLimited'
+
+  /v1/push/campaigns/{id}/metrics:
+    servers:
+      - url: https://portal.pushfy.com/v2/api.php
+    parameters:
+      - $ref: '#/components/parameters/PathId'
+    get:
+      operationId: getPushCampaignMetrics
+      summary: Campaign delivery / open / click / conversion metrics (server)
+      tags: [Push (Server)]
+      security:
+        - pushHmac: []
+      responses:
+        '200':
+          description: Campaign metrics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushCampaignMetrics'
+              example:
+                ok: true
+                campaign_id: 987
+                metrics:
+                  sent: 10000
+                  delivered: 9640
+                  opens: 3120
+                  clicks: 870
+                  conversions: 145
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '404':
+          $ref: '#/components/responses/V2NotFound'
+
+  /v1/push/segments:
+    servers:
+      - url: https://portal.pushfy.com/v2/api.php
+    get:
+      operationId: listPushSegments
+      summary: List segments (server)
+      tags: [Push (Server)]
+      security:
+        - pushHmac: []
+      responses:
+        '200':
+          description: List of segments.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  segments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PushSegment'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+    post:
+      operationId: createPushSegment
+      summary: Create a segment (server)
+      description: '`name` required, optional `filter`.'
+      tags: [Push (Server)]
+      security:
+        - pushHmac: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushSegment'
+            example:
+              name: VIP players
+              filter:
+                tags: [vip]
+      responses:
+        '200':
+          description: Segment created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  segment_id:
+                    type: integer
+              example:
+                ok: true
+                segment_id: 42
+        '400':
+          $ref: '#/components/responses/V2BadRequest'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+
+  /v1/push/events:
+    servers:
+      - url: https://portal.pushfy.com/v2/api.php
+    post:
+      operationId: ingestPushEvents
+      summary: Ingest events server-side (server)
+      tags: [Push (Server)]
+      security:
+        - pushHmac: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushServerEvent'
+            example:
+              event: add_to_cart
+              user_ext_id: user-42
+              value: 120.5
+              meta:
+                sku: ABC-1
+      responses:
+        '200':
+          description: Event ingested.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+              example:
+                ok: true
+        '400':
+          $ref: '#/components/responses/V2BadRequest'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '429':
+          $ref: '#/components/responses/V2RateLimited'
+
+  /v1/push/reports:
+    servers:
+      - url: https://portal.pushfy.com/v2/api.php
+    get:
+      operationId: getPushReports
+      summary: Aggregated push reports (server)
+      description: Query with `range`, or `de` + `ate` (dates).
+      tags: [Push (Server)]
+      security:
+        - pushHmac: []
+      parameters:
+        - name: range
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: de
+          in: query
+          required: false
+          description: Start date.
+          schema:
+            type: string
+            format: date
+        - name: ate
+          in: query
+          required: false
+          description: End date.
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Aggregated dashboard data.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  report:
+                    type: object
+                    additionalProperties: true
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+
+  /v1/push/test:
+    servers:
+      - url: https://portal.pushfy.com/v2/api.php
+    post:
+      operationId: sendPushTest
+      summary: Send a test push (server)
+      description: Fields — `project_id`, `title`, `body`, `url`, `limit`.
+      tags: [Push (Server)]
+      security:
+        - pushHmac: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                project_id:
+                  type: integer
+                title:
+                  type: string
+                body:
+                  type: string
+                url:
+                  type: string
+                limit:
+                  type: integer
+            example:
+              project_id: 5
+              title: Test push
+              body: Hello from Pushfy
+              limit: 1
+      responses:
+        '200':
+          description: Test push sent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+              example:
+                ok: true
+        '400':
+          $ref: '#/components/responses/V2BadRequest'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+
+  # --------------------------------------------------------- CONVERSATIONAL AI
+  /v1/conversations:
+    servers:
+      - url: https://portal.pushfy.com/v2/api.php
+    post:
+      operationId: openConversation
+      summary: Open a conversation
+      description: Opens an AI conversation for one of your users. Routed via `?r=/v1/conversations`.
+      tags: [Conversational AI]
+      security:
+        - paHmac: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConversationOpenRequest'
+            example:
+              user_ext_id: user-42
+              name: Ana
+              channel: api
+      responses:
+        '200':
+          description: Conversation opened.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  conversation_id:
+                    type: integer
+                  status:
+                    type: string
+              example:
+                ok: true
+                conversation_id: 123
+                status: bot
+        '400':
+          $ref: '#/components/responses/V2BadRequest'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '403':
+          $ref: '#/components/responses/V2Forbidden'
+        '429':
+          $ref: '#/components/responses/V2RateLimited'
+
+  /v1/conversations/{id}:
+    servers:
+      - url: https://portal.pushfy.com/v2/api.php
+    parameters:
+      - $ref: '#/components/parameters/PathId'
+    get:
+      operationId: getConversation
+      summary: Get a conversation and its messages
+      description: Returns the conversation state and up to the 200 most recent messages. Poll to read the bot's async replies.
+      tags: [Conversational AI]
+      security:
+        - paHmac: []
+      responses:
+        '200':
+          description: Conversation state and messages.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+              example:
+                ok: true
+                conversation_id: 123
+                status: bot
+                canal: api
+                intent: billing
+                sentiment: neutral
+                messages:
+                  - role: user
+                    content: How do I withdraw?
+                    created_at: "2026-07-12 14:33:21"
+                  - role: assistant
+                    content: "You can withdraw from Wallet -> Withdraw..."
+                    created_at: "2026-07-12 14:33:24"
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '404':
+          $ref: '#/components/responses/V2NotFound'
+
+  /v1/conversations/{id}/messages:
+    servers:
+      - url: https://portal.pushfy.com/v2/api.php
+    parameters:
+      - $ref: '#/components/parameters/PathId'
+    post:
+      operationId: postConversationMessage
+      summary: Send a user message
+      description: Posts a message from the user. If the conversation is in the `bot` state, the AI replies asynchronously.
+      tags: [Conversational AI]
+      security:
+        - paHmac: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageInput'
+            example:
+              content: How do I withdraw my balance?
+      responses:
+        '200':
+          description: Message accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  message_id:
+                    type: integer
+                  status:
+                    type: string
+              example:
+                ok: true
+                message_id: 9876
+                status: bot
+        '400':
+          $ref: '#/components/responses/V2BadRequest'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '404':
+          $ref: '#/components/responses/V2NotFound'
+
+  /v1/conversations/{id}/handoff:
+    servers:
+      - url: https://portal.pushfy.com/v2/api.php
+    parameters:
+      - $ref: '#/components/parameters/PathId'
+    post:
+      operationId: handoffConversation
+      summary: Hand off to a human agent
+      description: Transfers the conversation to a human agent; the bot stops replying (`status` becomes `humano`).
+      tags: [Conversational AI]
+      security:
+        - paHmac: []
+      responses:
+        '200':
+          description: Conversation handed off.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+              example:
+                ok: true
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '404':
+          $ref: '#/components/responses/V2NotFound'
+
+  /v1/conversations/{id}/close:
+    servers:
+      - url: https://portal.pushfy.com/v2/api.php
+    parameters:
+      - $ref: '#/components/parameters/PathId'
+    post:
+      operationId: closeConversation
+      summary: Close a conversation
+      description: Ends the conversation (`status` becomes `fechada`). No further replies.
+      tags: [Conversational AI]
+      security:
+        - paHmac: []
+      responses:
+        '200':
+          description: Conversation closed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+              example:
+                ok: true
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '404':
+          $ref: '#/components/responses/V2NotFound'
+
+  /v1/events:
+    servers:
+      - url: https://portal.pushfy.com/v2/api.php
+    post:
+      operationId: sendBusinessEvent
+      summary: Send a business event (PushAgent)
+      description: Pushes a business event to give the agent context and enable proactive behavior. Routed via `?r=/v1/events`.
+      tags: [Conversational AI]
+      security:
+        - paHmac: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusinessEvent'
+            example:
+              type: deposit_completed
+              user_ext_id: user-42
+              data:
+                amount: 50.0
+                currency: BRL
+      responses:
+        '200':
+          description: Event accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+              example:
+                ok: true
+        '400':
+          $ref: '#/components/responses/V2BadRequest'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '429':
+          $ref: '#/components/responses/V2RateLimited'
+
+  /v1/tasks:
+    servers:
+      - url: https://portal.pushfy.com/v2/api.php
+    post:
+      operationId: scheduleTask
+      summary: Schedule a follow-up task (PushAgent)
+      description: Schedules a follow-up on an existing conversation — for example, to re-engage the user later.
+      tags: [Conversational AI]
+      security:
+        - paHmac: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskInput'
+            example:
+              conversation_id: 123
+              run_at: "2026-07-13 10:00:00"
+              text: Check if the withdrawal went through
+      responses:
+        '200':
+          description: Task scheduled.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  task_id:
+                    type: integer
+              example:
+                ok: true
+                task_id: 55
+        '400':
+          $ref: '#/components/responses/V2BadRequest'
+        '401':
+          $ref: '#/components/responses/V2Unauthorized'
+        '404':
+          $ref: '#/components/responses/V2NotFound'
+        '429':
+          $ref: '#/components/responses/V2RateLimited'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        Messaging Bearer token. Send `Authorization: Bearer YOUR_API_TOKEN` on every messaging
+        request. HTTP Basic (`login:password`) is also accepted by messaging endpoints.
+    apiTokenHeader:
+      type: apiKey
+      in: header
+      name: X-API-TOKEN
+      description: Alternative messaging credential — the same API token sent in the `X-API-TOKEN` header instead of `Authorization`.
+    paHmac:
+      type: apiKey
+      in: header
+      name: X-PA-Key
+      description: |
+        PushAgent (Conversational AI) HMAC authentication. Besides the `X-PA-Key` header (the
+        `pak_` key id) each request MUST also carry:
+          - `X-PA-Timestamp`: current Unix time in seconds (server accepts a +/-300s window).
+          - `X-PA-Signature`: HMAC-SHA256 hex of the canonical string, using your `pas_` secret.
+
+        Signing recipe (see Authentication):
+          body_hash = sha256_hex(raw_request_body)   # sha256_hex("") for GET/empty body
+          base      = timestamp + "\n" + METHOD + "\n" + path + "\n" + body_hash
+          signature = hmac_sha256_hex(base, secret)
+        `path` is the route only (e.g. /v1/conversations), without the ?r= query string.
+        OpenAPI cannot model the timestamp+signature pair, so they are documented here.
+    pushHmac:
+      type: apiKey
+      in: header
+      name: X-PUSH-Key
+      description: |
+        Push server API HMAC authentication. Besides the `X-PUSH-Key` header (the `pushk_` key id)
+        each request MUST also carry:
+          - `X-PUSH-Timestamp`: current Unix time in seconds (+/-300s window).
+          - `X-PUSH-Signature`: HMAC-SHA256 hex of the canonical string, using your `pss_` secret.
+
+        Same signing recipe as PushAgent (see Authentication): the base string is
+        timestamp + "\n" + METHOD + "\n" + path + "\n" + sha256_hex(body). Write calls also accept
+        an optional `Idempotency-Key` header (<=120 chars). OpenAPI cannot model the
+        timestamp+signature pair, so they are documented here.
+
+  parameters:
+    PathId:
+      name: id
+      in: path
+      required: true
+      description: Resource id.
+      schema:
+        type: integer
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: Optional idempotency key (<=120 chars) — repeating the same key returns the original response instead of acting twice.
+      schema:
+        type: string
+        maxLength: 120
+
+  responses:
+    ClassicBadRequest:
+      description: Invalid request (e.g. invalid_json, invalid_payload, max_100000, rcs_campaign_not_found, cid_required).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorClassic'
+          example:
+            error: invalid_payload
+    ClassicUnauthorized:
+      description: Missing or invalid token (`unauthorized`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorClassic'
+          example:
+            error: unauthorized
+    ClassicForbidden:
+      description: Forbidden (`ip_not_allowed` / `invalid_campaign`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorClassic'
+          example:
+            error: ip_not_allowed
+    ClassicRateLimited:
+      description: Too many requests.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorClassic'
+          example:
+            error: rate_limited
+    ClassicTextBadRequest:
+      description: Invalid request — plain text body (e.g. `id parameter is missing`, `date parameter is missing`).
+      content:
+        text/plain:
+          schema:
+            type: string
+          example: id parameter is missing
+    ClassicTextUnauthorized:
+      description: Missing or invalid credentials — plain text body.
+      content:
+        text/plain:
+          schema:
+            type: string
+          example: Unauthorized
+    ClassicTextNotFound:
+      description: No message matches the query — plain text body.
+      content:
+        text/plain:
+          schema:
+            type: string
+          example: Messages not found
+    V2BadRequest:
+      description: Invalid request — V2 returns the offending field name as the error string (e.g. app_id, token, name, type, user_ext_id, content, run_at).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorV2'
+          example:
+            ok: false
+            error: app_id
+    V2Unauthorized:
+      description: Missing header, bad HMAC signature, or timestamp outside the +/-300s window.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorV2'
+          example:
+            ok: false
+            error: unauthorized
+    V2Forbidden:
+      description: Product not enabled (`produto_inativo`) or origin not authorized (`origem_nao_autorizada`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorV2'
+          example:
+            ok: false
+            error: produto_inativo
+    V2NotFound:
+      description: Unknown route or resource (e.g. `rota`, `conversa`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorV2'
+          example:
+            ok: false
+            error: conversa
+    V2RateLimited:
+      description: Rate limit exceeded — back off and retry.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorV2'
+          example:
+            ok: false
+            error: rate_limited
+
+  schemas:
+    # ---- Messaging
+    SmsMessage:
+      type: object
+      required: [destinations, text]
+      properties:
+        destinations:
+          type: array
+          description: Recipient list — only the first entry is used.
+          items:
+            type: object
+            required: [to]
+            properties:
+              to:
+                type: string
+                description: Phone number, digits only, country code first. Min 8 digits.
+                example: "5511999999999"
+        text:
+          type: string
+          description: Message body (up to 10,000 chars; longer is truncated).
+        ext_id:
+          type: string
+          description: Your own reference id, echoed back and used for status lookups. Auto-generated if omitted.
+        audio:
+          type: string
+          description: Audio id — turns this message into a voice call.
+    SmsSendRequest:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          description: One or more messages (up to 100,000 per request).
+          items:
+            $ref: '#/components/schemas/SmsMessage'
+    SendResponseItem:
+      type: object
+      description: One row returned per sent message.
+      properties:
+        id:
+          type: string
+          description: The message id (echoes ext_id, or the auto-increment id on the sync endpoint).
+        phone:
+          type: string
+        date:
+          type: string
+          example: "2026-07-12 14:33:21"
+        ext_id:
+          type: string
+    RcsMessage:
+      type: object
+      required: [destinations, text]
+      properties:
+        destinations:
+          type: array
+          description: Recipient list — only the first entry is used.
+          items:
+            type: object
+            required: [to]
+            properties:
+              to:
+                type: string
+                example: "5511999999999"
+        text:
+          type: string
+          description: Card body text.
+        title:
+          type: string
+          description: Card title (header).
+        image:
+          type: string
+          description: Image URL shown at the top of the card.
+        url:
+          type: string
+          description: Destination link opened by the button.
+        cta:
+          type: string
+          description: Button label (call to action).
+        ext_id:
+          type: string
+          description: Your own reference id, echoed back and used for status lookups.
+    RcsMessageFlat:
+      type: object
+      description: RCS card for the /rcs auto-campaign endpoint — `to` is on the message itself.
+      required: [to, text]
+      properties:
+        to:
+          type: string
+          example: "5511999999999"
+        text:
+          type: string
+        title:
+          type: string
+        image:
+          type: string
+        url:
+          type: string
+        cta:
+          type: string
+        ext_id:
+          type: string
+    RcsSendRequest:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/RcsMessage'
+    RcsAutoCampaignResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        campaign_id:
+          type: integer
+        inserted:
+          type: integer
+    StatusItem:
+      type: object
+      description: Delivery status row (fields vary by lookup endpoint).
+      properties:
+        phone:
+          type: string
+        status:
+          type: string
+          description: See the status glossary (Waiting, Sent, Delivered, Undelivered, ...).
+        date:
+          type: string
+        date_dlr:
+          type: string
+          description: When the carrier delivery receipt arrived.
+        ext_id:
+          type: string
+        channel:
+          type: string
+          description: SMS, RCS or TVOZ (voice).
+        brand:
+          type: string
+        statustvoz:
+          type: string
+          description: Voice call result; only meaningful when channel is TVOZ.
+    ReportItem:
+      type: object
+      description: One row of a /reportbydate report.
+      properties:
+        id:
+          type: string
+        timestamp:
+          type: string
+        date_dlr:
+          type: string
+        event:
+          type: string
+        recipient:
+          type: string
+        label:
+          type: string
+        message:
+          type: string
+        channel:
+          type: string
+          description: SMS, VOICE, RCS or WHATSAPP.
+        status_code:
+          type: string
+        cost:
+          type: string
+    BlockedNumber:
+      type: object
+      properties:
+        phone_number:
+          type: string
+        block_reason:
+          type: string
+        undelivered_total:
+          type: integer
+        blocked_at:
+          type: string
+    BalanceResponse:
+      type: object
+      properties:
+        saldo:
+          type: string
+          description: SMS balance as a formatted string with a thousands separator ("1.500" = one thousand five hundred).
+          example: "1.500"
+    # ---- Push (Public)
+    PushConfigResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        app_id:
+          type: string
+        vapid_public:
+          type: string
+        optin:
+          type: object
+          properties:
+            prompt:
+              type: string
+            delay:
+              type: integer
+    PushSubscribeRequest:
+      type: object
+      required: [app_id]
+      properties:
+        app_id:
+          type: string
+          description: Your public application id.
+        provider:
+          type: string
+          description: webpush (default), fcm or apns.
+          enum: [webpush, fcm, apns]
+          default: webpush
+        platform:
+          type: string
+          description: web (default), android, ios or safari.
+          enum: [web, android, ios, safari]
+          default: web
+        subscription:
+          type: object
+          description: Web push subscription (required when provider is webpush).
+          properties:
+            endpoint:
+              type: string
+            keys:
+              type: object
+              properties:
+                p256dh:
+                  type: string
+                auth:
+                  type: string
+        token:
+          type: string
+          description: Native push token (required when provider is fcm/apns).
+        user_ext_id:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        attrs:
+          type: object
+          additionalProperties: true
+        context:
+          type: object
+          properties:
+            ua:
+              type: string
+            lang:
+              type: string
+            tz:
+              type: string
+            country:
+              type: string
+            pwa:
+              type: boolean
+    PushTrackRequest:
+      type: object
+      required: [app_id, event]
+      properties:
+        app_id:
+          type: string
+        event:
+          type: string
+          enum: [delivered, open, click, close, conversion]
+        campaign_id:
+          type: integer
+        delivery_id:
+          type: string
+        value:
+          type: number
+        token:
+          type: string
+        meta:
+          type: object
+          additionalProperties: true
+    # ---- Push (Server)
+    PushDevice:
+      type: object
+      properties:
+        id:
+          type: integer
+        platform:
+          type: string
+        status:
+          type: string
+        user_ext_id:
+          type: string
+        token:
+          type: string
+    PushDeviceCreate:
+      type: object
+      description: Requires project_id or app_id, and token.
+      required: [token]
+      properties:
+        project_id:
+          type: integer
+        app_id:
+          type: string
+        token:
+          type: string
+        platform:
+          type: string
+        user_ext_id:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+    PushCampaign:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          description: Internal campaign name.
+        title:
+          type: string
+          description: Notification title.
+        body:
+          type: string
+          description: Notification body.
+        url:
+          type: string
+          description: Click-through URL.
+        icon:
+          type: string
+        image:
+          type: string
+        ttl:
+          type: integer
+          description: Time-to-live in seconds.
+        priority:
+          type: string
+        status:
+          type: string
+          readOnly: true
+        audience:
+          type: object
+          description: Targeting (segment id, tags, filter).
+          additionalProperties: true
+        schedule_at:
+          type: string
+          description: ISO time to send; omit to send on demand.
+    PushCampaignMetrics:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        campaign_id:
+          type: integer
+        metrics:
+          type: object
+          properties:
+            sent:
+              type: integer
+            delivered:
+              type: integer
+            opens:
+              type: integer
+            clicks:
+              type: integer
+            conversions:
+              type: integer
+    PushSegment:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+        filter:
+          type: object
+          additionalProperties: true
+    PushServerEvent:
+      type: object
+      required: [event]
+      properties:
+        event:
+          type: string
+        user_ext_id:
+          type: string
+        value:
+          type: number
+        meta:
+          type: object
+          additionalProperties: true
+    # ---- Conversational AI
+    ConversationOpenRequest:
+      type: object
+      required: [user_ext_id]
+      properties:
+        user_ext_id:
+          type: string
+          description: Your own id for the end user.
+        name:
+          type: string
+          description: Display name for the user.
+        channel:
+          type: string
+          enum: [webchat, sms, rcs, api]
+          default: api
+    ConversationMessage:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+        created_at:
+          type: string
+    Conversation:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        conversation_id:
+          type: integer
+        status:
+          type: string
+          description: bot, humano or fechada.
+          enum: [bot, humano, fechada]
+        canal:
+          type: string
+        intent:
+          type: string
+        sentiment:
+          type: string
+        messages:
+          type: array
+          description: Up to the 200 most recent messages.
+          items:
+            $ref: '#/components/schemas/ConversationMessage'
+    MessageInput:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          description: The user's message text (`text` is accepted as an alias).
+    BusinessEvent:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          description: Event type, up to 48 characters (e.g. deposit_completed).
+          maxLength: 48
+        user_ext_id:
+          type: string
+        data:
+          type: object
+          additionalProperties: true
+    TaskInput:
+      type: object
+      required: [conversation_id, run_at]
+      properties:
+        conversation_id:
+          type: integer
+        run_at:
+          type: string
+          description: When to run — a future date/time.
+        text:
+          type: string
+    # ---- Shared
+    OkResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+    ErrorClassic:
+      type: object
+      description: Classic messaging error object.
+      properties:
+        error:
+          type: string
+      required: [error]
+    ErrorV2:
+      type: object
+      description: V2 (Push / PushAgent) error object.
+      properties:
+        ok:
+          type: boolean
+          example: false
+        error:
+          type: string
+      required: [ok, error]
