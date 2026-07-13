@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>10.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Compile only src/ — keep tests/ and examples/ out of the package build. -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+
+    <!-- NuGet package metadata -->
+    <PackageId>Pushfy</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Pushfy</Authors>
+    <Company>Pushfy</Company>
+    <Product>Pushfy SDK</Product>
+    <Description>Official Pushfy SDK for .NET — SMS, RCS, Voice, Push Notifications and Conversational AI.</Description>
+    <PackageTags>pushfy;sms;rcs;voice;push-notifications;cpaas;messaging</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/PushfyCpaaS/Pushfy</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/PushfyCpaaS/Pushfy.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Copyright>Copyright (c) Pushfy</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="src/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>
