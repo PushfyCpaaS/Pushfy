@@ -142,7 +142,7 @@ curl -X POST 'https://portal.pushfy.com/v2/api.php?r=/v1/push/subscribe' \
     "provider": "webpush",
     "platform": "web",
     "subscription": {
-      "endpoint": "https://fcm.googleapis.com/fcm/send/xxxxxxxx",
+      "endpoint": "https://push-endpoint.example.com/s/xxxxxxxx",
       "keys": {
         "p256dh": "BExxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
         "auth": "xxxxxxxxxxxxxxxxxxxxxx"
@@ -173,7 +173,7 @@ curl -X POST 'https://portal.pushfy.com/v2/api.php?r=/v1/push/unsubscribe' \
   -H 'Content-Type: application/json' \
   -d '{
     "app_id": "pushapp_xxxxxxxxxxxx",
-    "subscription": { "endpoint": "https://fcm.googleapis.com/fcm/send/xxxxxxxx" }
+    "subscription": { "endpoint": "https://push-endpoint.example.com/s/xxxxxxxx" }
   }'
 ```
 

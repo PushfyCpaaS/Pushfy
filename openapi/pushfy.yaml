@@ -617,7 +617,7 @@ paths:
               provider: webpush
               platform: web
               subscription:
-                endpoint: "https://fcm.googleapis.com/fcm/send/xxxxxxxx"
+                endpoint: "https://push-endpoint.example.com/s/xxxxxxxx"
                 keys:
                   p256dh: BExxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
                   auth: xxxxxxxxxxxxxxxxxxxxxx
@@ -678,7 +678,7 @@ paths:
             example:
               app_id: pushapp_xxxxxxxxxxxx
               subscription:
-                endpoint: "https://fcm.googleapis.com/fcm/send/xxxxxxxx"
+                endpoint: "https://push-endpoint.example.com/s/xxxxxxxx"
       responses:
         '200':
           description: Device opted out.

@@ -965,7 +965,7 @@
                 "provider": "webpush",
                 "platform": "web",
                 "subscription": {
-                  "endpoint": "https://fcm.googleapis.com/fcm/send/xxxxxxxx",
+                  "endpoint": "https://push-endpoint.example.com/s/xxxxxxxx",
                   "keys": {
                     "p256dh": "BExxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                     "auth": "xxxxxxxxxxxxxxxxxxxxxx"
@@ -1063,7 +1063,7 @@
               "example": {
                 "app_id": "pushapp_xxxxxxxxxxxx",
                 "subscription": {
-                  "endpoint": "https://fcm.googleapis.com/fcm/send/xxxxxxxx"
+                  "endpoint": "https://push-endpoint.example.com/s/xxxxxxxx"
                 }
               }
             }

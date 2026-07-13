@@ -585,7 +585,7 @@
             "description": "Register/update a device (web push subscription or native token). Public `app_id` auth. For `subscribe`, the browser `Origin` must be in the project allow-list (empty list = any origin).",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"app_id\": \"{{app_id}}\",\n  \"provider\": \"webpush\",\n  \"platform\": \"web\",\n  \"subscription\": {\n    \"endpoint\": \"https://fcm.googleapis.com/fcm/send/xxxxxxxx\",\n    \"keys\": {\n      \"p256dh\": \"BExxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\n      \"auth\": \"xxxxxxxxxxxxxxxxxxxxxx\"\n    }\n  },\n  \"user_ext_id\": \"user-42\",\n  \"tags\": [\n    \"vip\",\n    \"pt-br\"\n  ],\n  \"context\": {\n    \"lang\": \"pt-BR\",\n    \"tz\": \"America/Sao_Paulo\",\n    \"pwa\": false\n  }\n}",
+              "raw": "{\n  \"app_id\": \"{{app_id}}\",\n  \"provider\": \"webpush\",\n  \"platform\": \"web\",\n  \"subscription\": {\n    \"endpoint\": \"https://push-endpoint.example.com/s/xxxxxxxx\",\n    \"keys\": {\n      \"p256dh\": \"BExxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\n      \"auth\": \"xxxxxxxxxxxxxxxxxxxxxx\"\n    }\n  },\n  \"user_ext_id\": \"user-42\",\n  \"tags\": [\n    \"vip\",\n    \"pt-br\"\n  ],\n  \"context\": {\n    \"lang\": \"pt-BR\",\n    \"tz\": \"America/Sao_Paulo\",\n    \"pwa\": false\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
