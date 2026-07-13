@@ -1,0 +1,25 @@
+{
+    "name": "pushfy/pushfy",
+    "description": "Official Pushfy SDK for PHP — SMS, RCS, Voice, Push Notifications and Conversational AI.",
+    "type": "library",
+    "keywords": ["pushfy", "sms", "rcs", "voice", "push-notifications", "cpaas", "messaging"],
+    "homepage": "https://github.com/PushfyCpaaS/Pushfy",
+    "license": "MIT",
+    "authors": [
+        { "name": "Pushfy" }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "ext-curl": "*",
+        "ext-json": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Pushfy\\": "src/"
+        }
+    },
+    "support": {
+        "issues": "https://github.com/PushfyCpaaS/Pushfy/issues",
+        "source": "https://github.com/PushfyCpaaS/Pushfy"
+    }
+}
