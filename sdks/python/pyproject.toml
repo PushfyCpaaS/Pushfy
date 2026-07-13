@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pushfy"
+version = "1.0.0"
+description = "Official Pushfy SDK for Python — SMS, RCS, Voice, Push Notifications and Conversational AI."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "Pushfy" }]
+keywords = ["pushfy", "sms", "rcs", "voice", "push-notifications", "cpaas", "messaging"]
+dependencies = []
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/PushfyCpaaS/Pushfy"
+Repository = "https://github.com/PushfyCpaaS/Pushfy"
+Issues = "https://github.com/PushfyCpaaS/Pushfy/issues"
+
+[tool.setuptools]
+packages = ["pushfy"]
