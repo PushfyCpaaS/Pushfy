@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.pushfy</groupId>
+  <artifactId>pushfy</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+
+  <name>Pushfy SDK for Java</name>
+  <description>Official Pushfy SDK for Java — SMS, RCS, Voice, Push Notifications and Conversational AI.</description>
+  <url>https://github.com/PushfyCpaaS/Pushfy</url>
+
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>https://opensource.org/licenses/MIT</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <organization>
+    <name>Pushfy</name>
+    <url>https://portal.pushfy.com</url>
+  </organization>
+
+  <scm>
+    <url>https://github.com/PushfyCpaaS/Pushfy</url>
+    <connection>scm:git:git://github.com/PushfyCpaaS/Pushfy.git</connection>
+    <tag>HEAD</tag>
+  </scm>
+
+  <properties>
+    <maven.compiler.release>11</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <junit.version>5.10.2</junit.version>
+  </properties>
+
+  <!-- Zero runtime dependencies: only the JDK 11 standard library is used
+       (java.net.http.HttpClient for transport, javax.crypto.Mac for HMAC).
+       The only declared dependency is JUnit, in test scope, and it is optional:
+       SmokeTest also exposes a main() so it runs with a bare `java` command. -->
+  <dependencies>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>${junit.version}</version>
+      <scope>test</scope>
+      <optional>true</optional>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.11.0</version>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.2.5</version>
+      </plugin>
+    </plugins>
+  </build>
+</project>
