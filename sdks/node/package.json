@@ -1,0 +1,17 @@
+{
+  "name": "@pushfy/pushfy",
+  "version": "1.0.0",
+  "description": "Official Pushfy SDK for Node.js — SMS, RCS, Voice, Push Notifications and Conversational AI.",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node test/smoke.js"
+  },
+  "files": ["src", "README.md"],
+  "keywords": ["pushfy", "sms", "rcs", "voice", "push-notifications", "cpaas", "messaging"],
+  "author": "Pushfy",
+  "license": "MIT",
+  "homepage": "https://github.com/PushfyCpaaS/Pushfy",
+  "repository": { "type": "git", "url": "git+https://github.com/PushfyCpaaS/Pushfy.git", "directory": "sdks/node" },
+  "bugs": { "url": "https://github.com/PushfyCpaaS/Pushfy/issues" },
+  "engines": { "node": ">=18" }
+}
