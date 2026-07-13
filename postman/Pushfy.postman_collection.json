@@ -1,0 +1,1178 @@
+{
+  "info": {
+    "name": "Pushfy API",
+    "_postman_id": "b3f7c2a1-4d5e-4f60-9a10-pushfy000001",
+    "description": "Pushfy API collection: Messaging (SMS/RCS/Voice, status, balance), Push Notifications (public SDK + server HMAC) and Conversational AI (PushAgent).\n\nAUTH\n- Messaging: Bearer `{{api_token}}` (inherited from the collection).\n- Push (Public): public `{{app_id}}` in body/query, no signature.\n- Push (Server) & Conversational AI: HMAC. The collection pre-request script signs these automatically (X-PUSH-* from `push_key`/`push_secret`, X-PA-* from `pa_key`/`pa_secret`).\n\nFill the values in the 'Pushfy - Production' environment. See README.md to import and use.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{api_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// ===========================================================================",
+          "// Pushfy auto-signer (collection-level pre-request).",
+          "// Signs V2 HMAC requests (routes served by /v2/api.php) automatically.",
+          "//   - Push SERVER routes (/v1/push/*)  -> X-PUSH-* headers + push_key/push_secret",
+          "//   - PushAgent routes  (/v1/*)         -> X-PA-*   headers + pa_key/pa_secret",
+          "// Classic Messaging requests and PUBLIC Push SDK routes are left untouched.",
+          "// ===========================================================================",
+          "",
+          "// Only V2 requests go through the /v2/api.php gateway. Everything else",
+          "// (classic messaging: /webapi, /apircsnativo.php, /getstatus, ...) is skipped.",
+          "const rawUrl = pm.request.url.toString();",
+          "if (rawUrl.indexOf('/v2/api.php') === -1) {",
+          "    return; // classic messaging request - nothing to sign here",
+          "}",
+          "",
+          "// The signed 'path' is the value of the ?r= query param. It includes any",
+          "// resource ids, e.g. /v1/conversations/123/messages or /v1/push/campaigns/987/send.",
+          "const r = pm.request.url.query.get('r') || '';",
+          "",
+          "// Public Push SDK routes authenticate with the public app_id only.",
+          "// They must NOT be signed.",
+          "const publicPushRoutes = [",
+          "    '/v1/push/config',",
+          "    '/v1/push/subscribe',",
+          "    '/v1/push/unsubscribe',",
+          "    '/v1/push/track'",
+          "];",
+          "if (publicPushRoutes.indexOf(r) !== -1) {",
+          "    return; // public route - app_id auth, no signature",
+          "}",
+          "",
+          "// Pick the credential set + header prefix by route family.",
+          "const isPush    = r.indexOf('/v1/push/') === 0;",
+          "const keyVar    = isPush ? 'push_key'    : 'pa_key';",
+          "const secretVar = isPush ? 'push_secret' : 'pa_secret';",
+          "const prefix    = isPush ? 'X-PUSH'      : 'X-PA';",
+          "",
+          "// Resolve credentials (environment wins, fall back to collection variables).",
+          "const key    = pm.environment.get(keyVar)    || pm.collectionVariables.get(keyVar);",
+          "const secret = pm.environment.get(secretVar) || pm.collectionVariables.get(secretVar);",
+          "",
+          "// Only sign when both the key and secret are actually configured.",
+          "if (!key || !secret) {",
+          "    console.log('[Pushfy signer] missing ' + keyVar + '/' + secretVar + ' - skipping signature.');",
+          "    return;",
+          "}",
+          "",
+          "// Canonical string:  timestamp \\n METHOD \\n path \\n sha256hex(body)",
+          "// (GET/empty body -> sha256hex(\"\") ). Server allows a +/-300s timestamp window.",
+          "const ts       = Math.floor(Date.now() / 1000).toString();",
+          "const method   = pm.request.method.toUpperCase();",
+          "const body     = (pm.request.body && pm.request.body.raw) ? pm.request.body.raw : '';",
+          "const bodyHash = CryptoJS.SHA256(body).toString(CryptoJS.enc.Hex);",
+          "const base     = ts + '\\n' + method + '\\n' + r + '\\n' + bodyHash;",
+          "const sig      = CryptoJS.HmacSHA256(base, secret).toString(CryptoJS.enc.Hex);",
+          "",
+          "// Upsert the signing headers for this single request.",
+          "pm.request.headers.upsert({ key: prefix + '-Key',       value: key });",
+          "pm.request.headers.upsert({ key: prefix + '-Timestamp', value: ts });",
+          "pm.request.headers.upsert({ key: prefix + '-Signature', value: sig });",
+          "console.log('[Pushfy signer] signed ' + method + ' ' + r + ' with ' + prefix + '-* headers.');"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "",
+      "type": "string",
+      "description": "Messaging base URL, e.g. https://portal.pushfy.com"
+    },
+    {
+      "key": "v2_url",
+      "value": "",
+      "type": "string",
+      "description": "V2 gateway, e.g. https://portal.pushfy.com/v2/api.php"
+    },
+    {
+      "key": "api_token",
+      "value": "",
+      "type": "string",
+      "description": "Messaging Bearer token (Settings -> API Tokens)"
+    },
+    {
+      "key": "pa_key",
+      "value": "",
+      "type": "string",
+      "description": "PushAgent HMAC key (pak_...)"
+    },
+    {
+      "key": "pa_secret",
+      "value": "",
+      "type": "string",
+      "description": "PushAgent HMAC secret (pas_...)"
+    },
+    {
+      "key": "push_key",
+      "value": "",
+      "type": "string",
+      "description": "Push server HMAC key (pushk_...)"
+    },
+    {
+      "key": "push_secret",
+      "value": "",
+      "type": "string",
+      "description": "Push server HMAC secret (pss_...)"
+    },
+    {
+      "key": "app_id",
+      "value": "",
+      "type": "string",
+      "description": "Public Push application id (pushapp_...)"
+    },
+    {
+      "key": "last_ext_id",
+      "value": "",
+      "type": "string",
+      "description": "Auto-set by the 'Send SMS' test; used by 'Get Status'"
+    },
+    {
+      "key": "conversation_id",
+      "value": "",
+      "type": "string",
+      "description": "Auto-set by 'Open Conversation'; used by the other PushAgent requests"
+    }
+  ],
+  "item": [
+    {
+      "name": "Messaging",
+      "description": "Classic SMS / RCS / Voice API on `https://portal.pushfy.com`. Auth: Bearer `{{api_token}}` (inherited from the collection).",
+      "item": [
+        {
+          "name": "Send SMS",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/webapi",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "webapi"
+              ]
+            },
+            "description": "Send one SMS (async/queued). Returns an array `[{id,phone,date,ext_id}]`.\n\nKeep the `ext_id` you send to look up delivery status later.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    {\n      \"ext_id\": \"order-1042\",\n      \"destinations\": [\n        {\n          \"to\": \"5511999999999\"\n        }\n      ],\n      \"text\": \"Your order #1042 has shipped\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "// Persist the ext_id we sent so 'Get Status' can look it up later.",
+                  "try {",
+                  "    var sent = JSON.parse(pm.request.body.raw);",
+                  "    var extId = sent && sent.messages && sent.messages[0] && sent.messages[0].ext_id;",
+                  "    if (extId) {",
+                  "        pm.collectionVariables.set('last_ext_id', extId);",
+                  "        console.log('Saved last_ext_id =', extId);",
+                  "    }",
+                  "} catch (e) {",
+                  "    console.log('Could not parse request body for ext_id:', e);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send Bulk SMS",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/webapi",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "webapi"
+              ]
+            },
+            "description": "Send many SMS in one request (up to 100,000 messages). Each message returns its own row.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    {\n      \"ext_id\": \"b1\",\n      \"destinations\": [\n        {\n          \"to\": \"5511999990001\"\n        }\n      ],\n      \"text\": \"Hi Ana\"\n    },\n    {\n      \"ext_id\": \"b2\",\n      \"destinations\": [\n        {\n          \"to\": \"5511999990002\"\n        }\n      ],\n      \"text\": \"Hi Bruno\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 2xx', function () {",
+                  "    pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send RCS",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/apircsnativo.php",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "apircsnativo.php"
+              ]
+            },
+            "description": "Send an RCS rich card (title/image/text/link button) against your provisioned 'API RCS' campaign.\n\nReturns `400 rcs_campaign_not_found` if the account has no 'API RCS' campaign; use `POST /rcs` to auto-create one.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    {\n      \"ext_id\": \"order-1042\",\n      \"destinations\": [\n        {\n          \"to\": \"5511999999999\"\n        }\n      ],\n      \"title\": \"Your order shipped\",\n      \"image\": \"https://cdn.example.com/box.png\",\n      \"text\": \"Order #1042 is on its way\",\n      \"url\": \"https://shop.example.com/orders/1042\",\n      \"cta\": \"Track order\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 2xx', function () {",
+                  "    pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload Audio (Voice step 1)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/audio",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "audio"
+              ]
+            },
+            "description": "Step 1 of Voice: upload an .mp3 and get an audio id back. multipart/form-data (`nome`, `audio`).\n\nResponse: `{\"message\":\"Audio saved successfully\",\"user_id\":123}`.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "nome",
+                  "value": "Welcome message",
+                  "type": "text"
+                },
+                {
+                  "key": "audio",
+                  "src": [],
+                  "type": "file",
+                  "description": ".mp3 file only"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 2xx', function () {",
+                  "    pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send Voice (step 2)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/webapi",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "webapi"
+              ]
+            },
+            "description": "Step 2 of Voice: trigger the call on `/webapi` with the `audio` id from step 1. A message carrying `audio` is dialed as a voice call.\n\nReplace `<audio_id>` with the id returned by 'Upload Audio'.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    {\n      \"ext_id\": \"call-1\",\n      \"destinations\": [\n        {\n          \"to\": \"5511999999999\"\n        }\n      ],\n      \"audio\": \"<audio_id>\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 2xx', function () {",
+                  "    pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/getstatus?ext_id={{last_ext_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "getstatus"
+              ],
+              "query": [
+                {
+                  "key": "ext_id",
+                  "value": "{{last_ext_id}}"
+                }
+              ]
+            },
+            "description": "Delivery status of one message by the `ext_id` you sent it with. Returns an array.\n\n`{{last_ext_id}}` is auto-populated by the 'Send SMS' test."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 2xx', function () {",
+                  "    pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Report by Date",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/reportbydate?start=2026-07-12 00:00:00&end=2026-07-12 23:59:59&event=Delivered&limit=1000",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "reportbydate"
+              ],
+              "query": [
+                {
+                  "key": "start",
+                  "value": "2026-07-12 00:00:00"
+                },
+                {
+                  "key": "end",
+                  "value": "2026-07-12 23:59:59"
+                },
+                {
+                  "key": "event",
+                  "value": "Delivered"
+                },
+                {
+                  "key": "limit",
+                  "value": "1000"
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Paginated report over a date/datetime range. Filters: `event`, `limit` (<=5000), `offset`. `start`+`end` take precedence over `date`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 2xx', function () {",
+                  "    pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Balance",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/balance",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "balance"
+              ]
+            },
+            "description": "Account SMS balance. Returns `{\"saldo\":\"1.500\"}` (formatted string with thousands separator). Main token or Basic only."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 2xx', function () {",
+                  "    pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Push (Public)",
+      "description": "Browser/device SDK calls on `/v2/api.php`. Auth: public `app_id` only (safe for front-end). No signature is applied to these requests.",
+      "auth": {
+        "type": "noauth"
+      },
+      "item": [
+        {
+          "name": "Get Config",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{v2_url}}?r=/v1/push/config&app_id={{app_id}}",
+              "host": [
+                "{{v2_url}}"
+              ],
+              "query": [
+                {
+                  "key": "r",
+                  "value": "/v1/push/config"
+                },
+                {
+                  "key": "app_id",
+                  "value": "{{app_id}}"
+                }
+              ]
+            },
+            "description": "Public config for the browser SDK (VAPID public key + opt-in). Authenticates with the public `app_id`. No signature.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 2xx', function () {",
+                  "    pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "});",
+                  "",
+                  "pm.test('Response ok === true', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.ok).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Subscribe",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{v2_url}}?r=/v1/push/subscribe",
+              "host": [
+                "{{v2_url}}"
+              ],
+              "query": [
+                {
+                  "key": "r",
+                  "value": "/v1/push/subscribe"
+                }
+              ]
+            },
+            "description": "Register/update a device (web push subscription or native token). Public `app_id` auth. For `subscribe`, the browser `Origin` must be in the project allow-list (empty list = any origin).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"app_id\": \"{{app_id}}\",\n  \"provider\": \"webpush\",\n  \"platform\": \"web\",\n  \"subscription\": {\n    \"endpoint\": \"https://fcm.googleapis.com/fcm/send/xxxxxxxx\",\n    \"keys\": {\n      \"p256dh\": \"BExxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\n      \"auth\": \"xxxxxxxxxxxxxxxxxxxxxx\"\n    }\n  },\n  \"user_ext_id\": \"user-42\",\n  \"tags\": [\n    \"vip\",\n    \"pt-br\"\n  ],\n  \"context\": {\n    \"lang\": \"pt-BR\",\n    \"tz\": \"America/Sao_Paulo\",\n    \"pwa\": false\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 2xx', function () {",
+                  "    pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "});",
+                  "",
+                  "pm.test('Response ok === true', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.ok).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Track",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{v2_url}}?r=/v1/push/track",
+              "host": [
+                "{{v2_url}}"
+              ],
+              "query": [
+                {
+                  "key": "r",
+                  "value": "/v1/push/track"
+                }
+              ]
+            },
+            "description": "Report a device-side event: `delivered` / `open` / `click` / `close` / `conversion`. Public `app_id` auth.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"app_id\": \"{{app_id}}\",\n  \"event\": \"click\",\n  \"campaign_id\": 987,\n  \"delivery_id\": \"d-xxxxxxxx\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 2xx', function () {",
+                  "    pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "});",
+                  "",
+                  "pm.test('Response ok === true', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.ok).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Push (Server, HMAC)",
+      "description": "Server-to-server Push API on `/v1/push/*`. Auth: HMAC with `X-PUSH-Key` / `X-PUSH-Timestamp` / `X-PUSH-Signature`, computed automatically by the collection pre-request script from `push_key` / `push_secret`.",
+      "auth": {
+        "type": "noauth"
+      },
+      "item": [
+        {
+          "name": "List Devices",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{v2_url}}?r=/v1/push/devices&status=active&platform=web&limit=100",
+              "host": [
+                "{{v2_url}}"
+              ],
+              "query": [
+                {
+                  "key": "r",
+                  "value": "/v1/push/devices"
+                },
+                {
+                  "key": "status",
+                  "value": "active"
+                },
+                {
+                  "key": "platform",
+                  "value": "web"
+                },
+                {
+                  "key": "limit",
+                  "value": "100"
+                }
+              ]
+            },
+            "description": "List devices. HMAC-signed (`X-PUSH-*`) automatically by the collection pre-request script. Filters: `status`, `platform`, `limit` (max 500).",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 2xx', function () {",
+                  "    pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "});",
+                  "",
+                  "pm.test('Response ok === true', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.ok).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Campaign",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "create-campaign-{{$guid}}",
+                "description": "Optional: repeat-safe write key (<=120 chars)"
+              }
+            ],
+            "url": {
+              "raw": "{{v2_url}}?r=/v1/push/campaigns",
+              "host": [
+                "{{v2_url}}"
+              ],
+              "query": [
+                {
+                  "key": "r",
+                  "value": "/v1/push/campaigns"
+                }
+              ]
+            },
+            "description": "Create a push campaign (draft). HMAC-signed automatically. Only `name` is required.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Weekend promo\",\n  \"title\": \"50% off today\",\n  \"body\": \"Tap to claim your bonus\",\n  \"url\": \"https://example.com/promo\",\n  \"icon\": \"https://cdn.example.com/icon.png\",\n  \"image\": \"https://cdn.example.com/hero.png\",\n  \"audience\": {\n    \"tags\": [\n      \"vip\"\n    ]\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 2xx', function () {",
+                  "    pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "});",
+                  "",
+                  "pm.test('Response ok === true', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.ok).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send Campaign",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "send-987-once",
+                "description": "Optional: repeat-safe send key"
+              }
+            ],
+            "url": {
+              "raw": "{{v2_url}}?r=/v1/push/campaigns/987/send",
+              "host": [
+                "{{v2_url}}"
+              ],
+              "query": [
+                {
+                  "key": "r",
+                  "value": "/v1/push/campaigns/987/send"
+                }
+              ]
+            },
+            "description": "Send a campaign. The signed path INCLUDES the id, e.g. `/v1/push/campaigns/987/send` (the signer reads it from `?r=`). Replace `987` with your campaign id in both the URL and the `r` query param.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 2xx', function () {",
+                  "    pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "});",
+                  "",
+                  "pm.test('Response ok === true', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.ok).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Campaign Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{v2_url}}?r=/v1/push/campaigns/987/metrics",
+              "host": [
+                "{{v2_url}}"
+              ],
+              "query": [
+                {
+                  "key": "r",
+                  "value": "/v1/push/campaigns/987/metrics"
+                }
+              ]
+            },
+            "description": "Delivery / open / click / conversion metrics for a campaign. HMAC-signed automatically. Replace `987` with your campaign id.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 2xx', function () {",
+                  "    pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "});",
+                  "",
+                  "pm.test('Response ok === true', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.ok).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Conversational AI (HMAC)",
+      "description": "PushAgent conversations on `/v1/*`. Auth: HMAC with `X-PA-Key` / `X-PA-Timestamp` / `X-PA-Signature`, computed automatically by the collection pre-request script from `pa_key` / `pa_secret`.",
+      "auth": {
+        "type": "noauth"
+      },
+      "item": [
+        {
+          "name": "Open Conversation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{v2_url}}?r=/v1/conversations",
+              "host": [
+                "{{v2_url}}"
+              ],
+              "query": [
+                {
+                  "key": "r",
+                  "value": "/v1/conversations"
+                }
+              ]
+            },
+            "description": "Open a conversation for one of your users. HMAC-signed (`X-PA-*`) automatically. Returns `{ok,conversation_id,status:'bot'}`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_ext_id\": \"user-42\",\n  \"name\": \"Ana\",\n  \"channel\": \"api\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 2xx', function () {",
+                  "    pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "});",
+                  "",
+                  "pm.test('Response ok === true', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.ok).to.eql(true);",
+                  "});",
+                  "",
+                  "// Save the new conversation id for the follow-up requests in this folder.",
+                  "try {",
+                  "    var json = pm.response.json();",
+                  "    if (json && json.conversation_id) {",
+                  "        pm.collectionVariables.set('conversation_id', json.conversation_id);",
+                  "        console.log('Saved conversation_id =', json.conversation_id);",
+                  "    }",
+                  "} catch (e) { console.log('No conversation_id in response:', e); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Post Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{v2_url}}?r=/v1/conversations/{{conversation_id}}/messages",
+              "host": [
+                "{{v2_url}}"
+              ],
+              "query": [
+                {
+                  "key": "r",
+                  "value": "/v1/conversations/{{conversation_id}}/messages"
+                }
+              ]
+            },
+            "description": "Post a message from the user. If the conversation is in `bot` state the AI replies asynchronously (read via 'Get Conversation' or the `message.sent` webhook).\n\n`{{conversation_id}}` is set by 'Open Conversation'. NOTE: the signed path includes the id, so keep the `r` query param in sync with the URL.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"How do I withdraw my balance?\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 2xx', function () {",
+                  "    pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "});",
+                  "",
+                  "pm.test('Response ok === true', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.ok).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Conversation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{v2_url}}?r=/v1/conversations/{{conversation_id}}",
+              "host": [
+                "{{v2_url}}"
+              ],
+              "query": [
+                {
+                  "key": "r",
+                  "value": "/v1/conversations/{{conversation_id}}"
+                }
+              ]
+            },
+            "description": "Get conversation state + up to the 200 most recent messages. Poll this to read the bot's async replies. GET body is empty, so the signature hashes an empty string.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 2xx', function () {",
+                  "    pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "});",
+                  "",
+                  "pm.test('Response ok === true', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.ok).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Handoff",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{v2_url}}?r=/v1/conversations/{{conversation_id}}/handoff",
+              "host": [
+                "{{v2_url}}"
+              ],
+              "query": [
+                {
+                  "key": "r",
+                  "value": "/v1/conversations/{{conversation_id}}/handoff"
+                }
+              ]
+            },
+            "description": "Hand the conversation off to a human agent. The bot stops replying (`status` -> `humano`).",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 2xx', function () {",
+                  "    pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "});",
+                  "",
+                  "pm.test('Response ok === true', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.ok).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Close",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{v2_url}}?r=/v1/conversations/{{conversation_id}}/close",
+              "host": [
+                "{{v2_url}}"
+              ],
+              "query": [
+                {
+                  "key": "r",
+                  "value": "/v1/conversations/{{conversation_id}}/close"
+                }
+              ]
+            },
+            "description": "Close the conversation (`status` -> `fechada`). No further replies.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 2xx', function () {",
+                  "    pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "});",
+                  "",
+                  "pm.test('Response ok === true', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.ok).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
